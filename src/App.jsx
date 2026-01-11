@@ -720,9 +720,6 @@ export default function StudyPlannerApp() {
                 <div className="text-2xl">{currentCatMeta.emoji}</div>
                 <div>
                   <div className="text-lg font-semibold">{currentCatMeta.label}</div>
-                  {currentCatMeta.showSubtitle && (
-                    <div className="text-sm opacity-80">Tap + to add items or tasks</div>
-                  )}
                 </div>
               </div>
 
