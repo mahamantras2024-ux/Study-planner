@@ -5,7 +5,6 @@ const pad = (n) => String(n).padStart(2, "0");
 const fmtYMD = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
-// Fixed palette per item (accent used for header only)
 const PALETTE = [
   { bg: "bg-indigo-600" },
   { bg: "bg-teal-600" },
@@ -60,38 +59,42 @@ function typeMeta(type) {
       label: "Exams",
       banner: "bg-gradient-to-r from-sky-50 to-white border-sky-200 text-sky-900",
       emoji: "📝",
+      chip: "bg-sky-50 text-sky-800 border-sky-200",
+      showSubtitle: true,
     };
   if (type === "project")
     return {
       label: "Projects",
-      banner: "bg-gradient-to-r from-purple-50 to-white border-purple-200 text-purple-900",
+      // ✅ red banner
+      banner: "bg-gradient-to-r from-rose-50 to-white border-rose-200 text-rose-900",
       emoji: "🧩",
+      chip: "bg-rose-50 text-rose-800 border-rose-200",
+      // ✅ remove subtitle
+      showSubtitle: false,
     };
   return {
     label: "Daily",
     banner: "bg-gradient-to-r from-emerald-50 to-white border-emerald-200 text-emerald-900",
     emoji: "✅",
+    chip: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    showSubtitle: true,
   };
 }
 
 // ========== Local storage fallback ==========
-const USERS_KEY = "sp_users_v4";
-const CURR_USER_KEY = "sp_current_user_v4";
-const itemsKey = (u) => `sp_items_v4_${u}`;
-const POMO_KEY = "sp_pomo_v4";
+const USERS_KEY = "sp_users_v5";
+const CURR_USER_KEY = "sp_current_user_v5";
+const itemsKey = (u) => `sp_items_v5_${u}`;
+const POMO_KEY = "sp_pomo_v5";
 
 // ========== Server sync config ==========
 const API_BASE =
-  (typeof import.meta !== "undefined" &&
-    import.meta.env &&
-    import.meta.env.VITE_API_BASE) ||
-  (typeof process !== "undefined" &&
-    process.env &&
-    process.env.REACT_APP_API_BASE) ||
+  (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_BASE) ||
+  (typeof process !== "undefined" && process.env && process.env.REACT_APP_API_BASE) ||
   "";
 const SERVER_ENABLED = Boolean(API_BASE);
 
-const TOKEN_KEY = "sp_token_v4";
+const TOKEN_KEY = "sp_token_v5";
 const getToken = () => localStorage.getItem(TOKEN_KEY) || "";
 const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
 const clearToken = () => localStorage.removeItem(TOKEN_KEY);
@@ -119,8 +122,7 @@ async function api(path, { method = "GET", body, token } = {}) {
   const data = isJson ? await res.json() : null;
 
   if (!res.ok) {
-    const msg =
-      (data && (data.error || data.message)) || `Request failed (${res.status})`;
+    const msg = (data && (data.error || data.message)) || `Request failed (${res.status})`;
     throw new Error(msg);
   }
   return data;
@@ -139,7 +141,9 @@ const DEFAULT_ITEMS = () => {
     { id: crypto.randomUUID(), type: "exam", name: "BGS", colorIdx: 0, dueDate: d(21), tasks: [] },
     { id: crypto.randomUUID(), type: "exam", name: "Econs", colorIdx: 1, dueDate: d(28), tasks: [] },
     { id: crypto.randomUUID(), type: "project", name: "Omni Iteration", colorIdx: 2, dueDate: d(14), tasks: [] },
-    { id: crypto.randomUUID(), type: "daily", name: "Daily To-Dos", colorIdx: 3, dueDate: d(0), tasks: [] },
+
+    // keep ONE daily container internally (hidden in UI)
+    { id: crypto.randomUUID(), type: "daily", name: "Daily", colorIdx: 3, dueDate: d(0), tasks: [] },
   ];
 };
 
@@ -223,7 +227,6 @@ function IconPause({ className = "" }) {
 
 // Status icons
 function IconStatusNotStarted({ className = "" }) {
-  // changed from hollow circle -> "minus in circle" style
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="8" />
@@ -274,7 +277,7 @@ function savePomo(state) {
 }
 function defaultPomoState() {
   return {
-    mode: "focus", // focus | break
+    mode: "focus",
     isRunning: false,
     focusMin: 25,
     breakMin: 5,
@@ -292,7 +295,7 @@ export default function StudyPlannerApp() {
   const [user, setUser] = useState(() => localStorage.getItem(CURR_USER_KEY) || "");
   const [token, setAuthToken] = useState(() => (SERVER_ENABLED ? getToken() : ""));
   const [items, setItems] = useState([]);
-  const [activeTab, setActiveTab] = useState("today"); // ✅ Today first
+  const [activeTab, setActiveTab] = useState("today");
   const [syncStatus, setSyncStatus] = useState(SERVER_ENABLED ? "Ready" : "Local mode");
 
   const [profileOpen, setProfileOpen] = useState(false);
@@ -305,7 +308,6 @@ export default function StudyPlannerApp() {
 
   const today = useMemo(() => fmtYMD(new Date()), []);
 
-  // ✅ Order: Today → Planner → Timer
   const tabs = useMemo(
     () => [
       { id: "today", label: "Today" },
@@ -314,20 +316,6 @@ export default function StudyPlannerApp() {
     ],
     []
   );
-
-  const todayTodos = useMemo(() => {
-    return items.flatMap((m) =>
-      (m.tasks || [])
-        .filter((t) => t.date === today)
-        .map((t) => ({
-          ...t,
-          itemId: m.id,
-          name: m.name,
-          type: m.type,
-          colorIdx: m.colorIdx,
-        }))
-    );
-  }, [items, today]);
 
   // ===== Load data =====
   useEffect(() => {
@@ -372,6 +360,22 @@ export default function StudyPlannerApp() {
       cancelled = true;
     };
   }, [user, token]);
+
+  // ✅ ensure only one DAILY container exists (no modules UI, just one bucket)
+  useEffect(() => {
+    if (!items.length) return;
+    const daily = items.filter((x) => x.type === "daily");
+    if (daily.length <= 1) return;
+
+    const mergedTasks = daily.flatMap((d) => d.tasks || []);
+    const keep = daily[0];
+    const rest = items.filter((x) => x.type !== "daily");
+    setItems([
+      ...rest,
+      { ...keep, name: "Daily", tasks: mergedTasks, dueDate: fmtYMD(new Date()) },
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length]);
 
   // ===== Save data =====
   useEffect(() => {
@@ -513,6 +517,21 @@ export default function StudyPlannerApp() {
   // ===== Items/tasks helpers =====
   const updateItem = (id, patch) => setItems((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
 
+  const ensureDailyContainer = () => {
+    const existing = items.find((x) => x.type === "daily");
+    if (existing) return existing.id;
+    const d = {
+      id: crypto.randomUUID(),
+      type: "daily",
+      name: "Daily",
+      colorIdx: 3,
+      dueDate: fmtYMD(new Date()),
+      tasks: [],
+    };
+    setItems((prev) => [...prev, d]);
+    return d.id;
+  };
+
   const addItem = (type) => {
     const idx = items.filter((x) => x.type === type).length + 1;
     const dt = new Date();
@@ -520,7 +539,7 @@ export default function StudyPlannerApp() {
     const newItem = {
       id: crypto.randomUUID(),
       type,
-      name: type === "daily" ? `Daily To-Dos ${idx}` : `${type[0].toUpperCase() + type.slice(1)} ${idx}`,
+      name: type === "daily" ? `Daily ${idx}` : `${type[0].toUpperCase() + type.slice(1)} ${idx}`,
       colorIdx: items.length % PALETTE.length,
       dueDate: fmtYMD(dt),
       tasks: [],
@@ -531,6 +550,11 @@ export default function StudyPlannerApp() {
   const addTask = (itemId) => {
     const task = { id: crypto.randomUUID(), date: today, topic: "New task", status: "Not Started" };
     setItems((prev) => prev.map((m) => (m.id === itemId ? { ...m, tasks: [...(m.tasks || []), task] } : m)));
+  };
+
+  const addDailyTask = () => {
+    const dailyId = ensureDailyContainer();
+    addTask(dailyId);
   };
 
   const removeTask = (itemId, taskId) =>
@@ -579,6 +603,21 @@ export default function StudyPlannerApp() {
       const nextMode = prev.mode === "focus" ? "break" : "focus";
       return { ...prev, mode: nextMode, isRunning: false, targetTs: null, secondsLeft: durationForMode(prev, nextMode) };
     });
+
+  // ===== Today list =====
+  const todayTodos = useMemo(() => {
+    return items.flatMap((m) =>
+      (m.tasks || [])
+        .filter((t) => t.date === today)
+        .map((t) => ({
+          ...t,
+          itemId: m.id,
+          containerName: m.name,
+          type: m.type,
+          colorIdx: m.colorIdx,
+        }))
+    );
+  }, [items, today]);
 
   if (!user) return <AuthScreen onLogin={login} onRegister={register} serverEnabled={SERVER_ENABLED} />;
 
@@ -636,7 +675,10 @@ export default function StudyPlannerApp() {
                   Reset data
                 </button>
 
-                <button onClick={logout} className="w-full px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 text-rose-600">
+                <button
+                  onClick={logout}
+                  className="w-full px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 text-rose-600"
+                >
                   <IconLogout className="w-4 h-4" />
                   Logout
                 </button>
@@ -651,7 +693,9 @@ export default function StudyPlannerApp() {
               <button
                 key={t.id}
                 onClick={() => setActiveTab(t.id)}
-                className={`px-4 py-2 rounded-xl border ${activeTab === t.id ? "bg-slate-900 text-white" : "bg-white hover:bg-slate-100"}`}
+                className={`px-4 py-2 rounded-xl border ${
+                  activeTab === t.id ? "bg-slate-900 text-white" : "bg-white hover:bg-slate-100"
+                }`}
               >
                 {t.label}
               </button>
@@ -676,11 +720,13 @@ export default function StudyPlannerApp() {
                 <div className="text-2xl">{currentCatMeta.emoji}</div>
                 <div>
                   <div className="text-lg font-semibold">{currentCatMeta.label}</div>
-                  <div className="text-sm opacity-80">Tap + to add items or tasks</div>
+                  {currentCatMeta.showSubtitle && (
+                    <div className="text-sm opacity-80">Tap + to add items or tasks</div>
+                  )}
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 items-center">
                 {[
                   { id: "exam", label: "Exams" },
                   { id: "project", label: "Projects" },
@@ -696,20 +742,45 @@ export default function StudyPlannerApp() {
                     {c.label}
                   </button>
                 ))}
+
+                {/* ✅ Desktop add item for Exams/Projects */}
+                {category !== "daily" && (
+                  <button
+                    onClick={() => addItem(category)}
+                    className="hidden md:inline-flex ml-2 px-3 py-2 rounded-xl bg-slate-900 text-white border border-slate-900 items-center gap-2"
+                    title="Add item"
+                  >
+                    <IconPlus className="w-4 h-4" />
+                    Item
+                  </button>
+                )}
               </div>
             </div>
 
-            <Planner
-              items={items.filter((x) => x.type === category)}
-              updateItem={updateItem}
-              addTask={addTask}
-              addItem={addItem}
-              removeTask={removeTask}
-              setTaskStatus={setTaskStatus}
-              cycleTaskStatus={cycleTaskStatus}
-              progressFor={progressFor}
-              category={category}
-            />
+            {category === "daily" ? (
+              <DailyBoard
+                items={items}
+                today={today}
+                addDailyTask={addDailyTask}
+                updateItem={updateItem}
+                removeTask={removeTask}
+                setTaskStatus={setTaskStatus}
+                cycleTaskStatus={cycleTaskStatus}
+              />
+            ) : (
+              <Planner
+                items={items.filter((x) => x.type === category)}
+                allItems={items}
+                updateItem={updateItem}
+                addTask={addTask}
+                addItem={addItem}
+                removeTask={removeTask}
+                setTaskStatus={setTaskStatus}
+                cycleTaskStatus={cycleTaskStatus}
+                progressFor={progressFor}
+                category={category}
+              />
+            )}
           </>
         )}
 
@@ -805,13 +876,25 @@ function AuthScreen({ onLogin, onRegister, serverEnabled }) {
           </button>
         </div>
 
-        <p className="text-xs text-slate-500 mt-3">{serverEnabled ? "Your items + tasks sync to your server account." : "Data stays on this device (localStorage)."}</p>
+        <p className="text-xs text-slate-500 mt-3">
+          {serverEnabled ? "Your items + tasks sync to your server account." : "Data stays on this device (localStorage)."}
+        </p>
       </div>
     </div>
   );
 }
 
 // ===================== TODAY =====================
+function CategoryChip({ type }) {
+  const tm = typeMeta(type);
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs ${tm.chip}`}>
+      <span>{tm.emoji}</span>
+      <span>{tm.label}</span>
+    </span>
+  );
+}
+
 function Today({ todos, setTaskStatus, cycleTaskStatus }) {
   if (!todos.length) return <p className="text-slate-600">🎉 No tasks for today.</p>;
 
@@ -824,28 +907,30 @@ function Today({ todos, setTaskStatus, cycleTaskStatus }) {
           <div key={t.id} className="rounded-2xl border bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-sm text-slate-500 truncate">{t.name}</div>
+                <div className="flex items-center gap-2">
+                  {/* ✅ category label on Today */}
+                  <CategoryChip type={t.type} />
+                  <span className="text-sm text-slate-500 truncate">{t.containerName}</span>
+                </div>
                 <div className="font-medium truncate mt-1">{t.topic}</div>
               </div>
 
-              {/* Desktop: icon + text + dropdown */}
-              <div className="hidden sm:flex items-center gap-2">
-                <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl ring-1 ${meta.pill}`}>
+              {/* ✅ Desktop: ONE status control only */}
+              <div className="hidden sm:flex items-center">
+                <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border ${meta.select}`}>
                   <StatusIcon status={t.status} className={`w-4 h-4 ${meta.iconColor}`} />
-                  <span className="text-sm">{meta.label}</span>
-                </span>
-
-                <select
-                  value={t.status}
-                  onChange={(e) => setTaskStatus(t.itemId, t.id, e.target.value)}
-                  className={`px-3 py-2 rounded-xl border text-sm ${meta.select}`}
-                >
-                  {STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
+                  <select
+                    value={t.status}
+                    onChange={(e) => setTaskStatus(t.itemId, t.id, e.target.value)}
+                    className="bg-transparent outline-none border-none p-0 m-0 text-sm"
+                  >
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {/* Mobile: icon-only status button (tap cycles) */}
@@ -865,9 +950,105 @@ function Today({ todos, setTaskStatus, cycleTaskStatus }) {
   );
 }
 
-// ===================== PLANNER =====================
+// ===================== DAILY (NO MODULES) =====================
+function DailyBoard({ items, today, addDailyTask, updateItem, removeTask, setTaskStatus, cycleTaskStatus }) {
+  const daily = items.find((x) => x.type === "daily");
+  const tasks = (daily?.tasks || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+
+  const updateTask = (taskId, patch) => {
+    if (!daily) return;
+    updateItem(daily.id, {
+      tasks: daily.tasks.map((t) => (t.id === taskId ? { ...t, ...patch } : t)),
+    });
+  };
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-slate-600">Add daily tasks directly (no modules).</div>
+        <button
+          onClick={addDailyTask}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white border border-slate-900"
+          title="Add daily task"
+        >
+          <IconPlus className="w-4 h-4" />
+          Task
+        </button>
+      </div>
+
+      <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+        <div className="p-4">
+          {!tasks.length ? (
+            <p className="text-slate-600">No daily tasks yet. Add one ✨</p>
+          ) : (
+            <div className="space-y-2">
+              {tasks.map((t) => {
+                const meta = statusMeta(t.status);
+
+                return (
+                  <div key={t.id} className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={t.date}
+                      onChange={(e) => updateTask(t.id, { date: e.target.value })}
+                      className="w-[9.5rem] shrink-0 px-3 py-2 rounded-lg border text-sm bg-white"
+                    />
+
+                    <input
+                      value={t.topic}
+                      onChange={(e) => updateTask(t.id, { topic: e.target.value })}
+                      className="flex-1 min-w-0 px-3 py-2 rounded-lg border text-sm bg-white"
+                    />
+
+                    {/* desktop status (icon+label dropdown), mobile icon-only tap */}
+                    <div className="hidden sm:flex">
+                      <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border ${meta.select}`}>
+                        <StatusIcon status={t.status} className={`w-4 h-4 ${meta.iconColor}`} />
+                        <select
+                          value={t.status}
+                          onChange={(e) => setTaskStatus(daily.id, t.id, e.target.value)}
+                          className="bg-transparent outline-none border-none p-0 m-0 text-sm"
+                        >
+                          {STATUSES.map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <button
+                      className={`sm:hidden w-11 h-11 shrink-0 grid place-items-center rounded-lg ring-1 ${meta.pill}`}
+                      title={`Status: ${meta.label} (tap to change)`}
+                      onClick={() => cycleTaskStatus(daily.id, t.id)}
+                    >
+                      <StatusIcon status={t.status} className={`w-5 h-5 ${meta.iconColor}`} />
+                    </button>
+
+                    {/* delete red */}
+                    <button
+                      onClick={() => removeTask(daily.id, t.id)}
+                      className="w-11 h-11 shrink-0 grid place-items-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600"
+                      title="Delete"
+                    >
+                      <IconTrash className="w-5 h-5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ===================== PLANNER (EXAMS/PROJECTS) =====================
 function Planner({
   items,
+  allItems,
   updateItem,
   addTask,
   addItem,
@@ -905,17 +1086,13 @@ function Planner({
                     className="min-w-[10rem] flex-1 px-3 py-2 rounded-lg text-slate-900 text-sm"
                   />
 
-                  {m.type !== "daily" ? (
-                    <input
-                      type="date"
-                      value={m.dueDate}
-                      onChange={(e) => updateItem(m.id, { dueDate: e.target.value })}
-                      className="px-3 py-2 rounded-lg text-slate-900 text-sm bg-white"
-                      aria-label="Due date"
-                    />
-                  ) : (
-                    <span className="px-3 py-2 rounded-lg bg-white/15 text-sm">Daily</span>
-                  )}
+                  <input
+                    type="date"
+                    value={m.dueDate}
+                    onChange={(e) => updateItem(m.id, { dueDate: e.target.value })}
+                    className="px-3 py-2 rounded-lg text-slate-900 text-sm bg-white"
+                    aria-label="Due date"
+                  />
 
                   <span className="px-2 py-1 rounded-lg bg-white/15 text-xs font-semibold">{progressFor(m)}%</span>
 
@@ -934,7 +1111,6 @@ function Planner({
                 </div>
               </div>
 
-              {/* ✅ Cleaner interior background */}
               <div className={`${isOpen(m.id) ? "block" : "hidden"} md:block p-4 bg-white`}>
                 {!sortedTasks.length ? (
                   <p className="text-slate-600">No tasks yet. Tap + to add.</p>
@@ -975,7 +1151,6 @@ function Planner({
                               <StatusIcon status={t.status} className={`w-5 h-5 ${meta.iconColor}`} />
                             </button>
 
-                            {/* ✅ Delete icon red */}
                             <button
                               onClick={() => removeTask(m.id, t.id)}
                               className="w-11 h-11 shrink-0 grid place-items-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600"
@@ -1029,7 +1204,6 @@ function Planner({
                                   />
                                 </td>
 
-                                {/* ✅ Removed dot */}
                                 <td className="py-2 pr-4">
                                   <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border ${meta.select}`}>
                                     <StatusIcon status={t.status} className={`w-4 h-4 ${meta.iconColor}`} />
@@ -1048,7 +1222,6 @@ function Planner({
                                 </td>
 
                                 <td className="py-2 pr-4">
-                                  {/* ✅ Delete icon red */}
                                   <button
                                     onClick={() => removeTask(m.id, t.id)}
                                     className="px-2 py-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
@@ -1071,6 +1244,7 @@ function Planner({
         );
       })}
 
+      {/* Mobile + */}
       <button
         onClick={() => setPickerOpen(true)}
         className="md:hidden fixed right-5 bottom-20 z-40 w-14 h-14 rounded-full bg-slate-900 text-white shadow-lg grid place-items-center"
@@ -1081,7 +1255,7 @@ function Planner({
 
       {pickerOpen && (
         <AddPickerSheet
-          items={items}
+          items={allItems.filter((x) => x.type !== "daily")}
           currentType={category}
           onClose={() => setPickerOpen(false)}
           onAddTask={addTask}
@@ -1113,11 +1287,7 @@ function AddPickerSheet({ items, currentType, onClose, onAddTask, onAddItem }) {
             }}
             className="w-full rounded-xl border px-3 py-3 text-left"
           >
-            <div className="flex items-center gap-2">
-              <div className="font-medium text-sm">
-                New {tm.label} item
-              </div>
-            </div>
+            <div className="font-medium text-sm">New {tm.label} item</div>
             <div className="text-xs text-slate-500 mt-0.5">Creates a new card in this category</div>
           </button>
         </div>
@@ -1140,7 +1310,7 @@ function AddPickerSheet({ items, currentType, onClose, onAddTask, onAddItem }) {
                     <span className={`w-2.5 h-2.5 rounded-full ${colors.bg}`} />
                     <span className="truncate font-medium">{m.name}</span>
                   </div>
-                  <span className="text-xs text-slate-500">{m.type === "daily" ? "—" : m.dueDate}</span>
+                  <span className="text-xs text-slate-500">{m.dueDate}</span>
                 </button>
               );
             })}
