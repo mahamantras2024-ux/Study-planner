@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 /**
- * ✅ Status colors + icons:
- *   - Not Started = red
- *   - In Progress = orange
- *   - Done = green
- * ✅ Mobile status control shows ICONS only (tap to cycle status)
- * ✅ Multi-use: Exams / Projects / Daily (categorized)
- * ✅ Pomodoro timer tab + mini dock
- * ✅ Still supports server sync if API_BASE is set
+ * Updates requested ✅
+ * - Pomodoro looks like a real clock (circular dial + progress ring + hand)
+ * - Start/Pause/Reset are ICON buttons
+ * - Pomodoro settings moved into Profile dropdown -> "Pomodoro settings"
+ * - NO pomodoro dock/notification on mobile (and no dock at all, so + never disappears)
+ * - Planner: removed "All" filter (only Exams / Projects / Daily)
+ * - Tasks grouping looked meh → now each item card is tinted by type + category label above
  */
 
 // === Helper utils ===
@@ -22,7 +21,7 @@ const daysBetween = (d1, d2) =>
   Math.ceil((parseYMD(fmtYMD(d2)) - parseYMD(fmtYMD(d1))) / (1000 * 60 * 60 * 24));
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
-// Fixed palette per item
+// Fixed palette per item (accent used for header)
 const PALETTE = [
   { bg: "bg-indigo-600", pill: "bg-indigo-50 text-indigo-700" },
   { bg: "bg-teal-600", pill: "bg-teal-50 text-teal-700" },
@@ -66,17 +65,35 @@ function nextStatus(current) {
   const idx = STATUSES.indexOf(current);
   return STATUSES[(idx + 1 + STATUSES.length) % STATUSES.length];
 }
+
 function typeMeta(type) {
-  if (type === "exam") return { label: "Exams", chip: "bg-sky-50 text-sky-700 ring-sky-200" };
-  if (type === "project") return { label: "Projects", chip: "bg-purple-50 text-purple-700 ring-purple-200" };
-  return { label: "Daily", chip: "bg-slate-50 text-slate-700 ring-slate-200" };
+  if (type === "exam")
+    return {
+      label: "Exams",
+      chip: "bg-sky-50 text-sky-700 ring-sky-200",
+      tint: "bg-sky-50/60",
+      border: "border-sky-200",
+    };
+  if (type === "project")
+    return {
+      label: "Projects",
+      chip: "bg-purple-50 text-purple-700 ring-purple-200",
+      tint: "bg-purple-50/60",
+      border: "border-purple-200",
+    };
+  return {
+    label: "Daily",
+    chip: "bg-slate-50 text-slate-700 ring-slate-200",
+    tint: "bg-slate-50/60",
+    border: "border-slate-200",
+  };
 }
 
 // ========== Local storage fallback ==========
-const USERS_KEY = "sp_users_v2";
-const CURR_USER_KEY = "sp_current_user_v2";
-const itemsKey = (u) => `sp_items_v2_${u}`;
-const POMO_KEY = "sp_pomo_v2";
+const USERS_KEY = "sp_users_v3";
+const CURR_USER_KEY = "sp_current_user_v3";
+const itemsKey = (u) => `sp_items_v3_${u}`;
+const POMO_KEY = "sp_pomo_v3";
 
 const getUsers = () => {
   try {
@@ -94,7 +111,7 @@ const API_BASE =
   "";
 const SERVER_ENABLED = Boolean(API_BASE);
 
-const TOKEN_KEY = "sp_token_v2";
+const TOKEN_KEY = "sp_token_v3";
 const getToken = () => localStorage.getItem(TOKEN_KEY) || "";
 const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
 const clearToken = () => localStorage.removeItem(TOKEN_KEY);
@@ -129,14 +146,9 @@ const DEFAULT_ITEMS = () => {
   };
 
   return [
-    // Exams
     { id: crypto.randomUUID(), type: "exam", name: "BGS", colorIdx: 0, dueDate: d(21), tasks: [] },
     { id: crypto.randomUUID(), type: "exam", name: "Econs", colorIdx: 1, dueDate: d(28), tasks: [] },
-
-    // Projects
     { id: crypto.randomUUID(), type: "project", name: "Omni Iteration", colorIdx: 2, dueDate: d(14), tasks: [] },
-
-    // Daily
     { id: crypto.randomUUID(), type: "daily", name: "Daily To-Dos", colorIdx: 3, dueDate: d(0), tasks: [] },
   ];
 };
@@ -196,19 +208,31 @@ function IconStopwatch({ className = "" }) {
     </svg>
   );
 }
-function IconCircleX({ className = "" }) {
+function IconSettings({ className = "" }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M9 9l6 6" />
-      <path d="M15 9l-6 6" />
+      <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
+      <path d="M19.4 15a7.9 7.9 0 0 0 .1-2l2-1.2-2-3.4-2.3.6a7.8 7.8 0 0 0-1.7-1l-.3-2.4H9l-.3 2.4a7.8 7.8 0 0 0-1.7 1l-2.3-.6-2 3.4 2 1.2a7.9 7.9 0 0 0 .1 2l-2 1.2 2 3.4 2.3-.6a7.8 7.8 0 0 0 1.7 1l.3 2.4h6.2l.3-2.4a7.8 7.8 0 0 0 1.7-1l2.3.6 2-3.4-2-1.2z" />
+    </svg>
+  );
+}
+function IconPlay({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+      <path d="M8 5v14l12-7-12-7z" />
+    </svg>
+  );
+}
+function IconPause({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+      <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
     </svg>
   );
 }
 
 // Status icons
 function IconStatusNotStarted({ className = "" }) {
-  // empty circle
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="8" />
@@ -216,7 +240,6 @@ function IconStatusNotStarted({ className = "" }) {
   );
 }
 function IconStatusInProgress({ className = "" }) {
-  // half circle
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M12 4a8 8 0 1 0 8 8" />
@@ -225,7 +248,6 @@ function IconStatusInProgress({ className = "" }) {
   );
 }
 function IconStatusDone({ className = "" }) {
-  // check circle
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="8" />
@@ -267,7 +289,6 @@ function defaultPomoState() {
     longMin: 15,
     secondsLeft: 25 * 60,
     rounds: 0,
-    // we store a "targetTs" when running so refresh keeps timer correct
     targetTs: null,
   };
 }
@@ -284,10 +305,13 @@ export default function StudyPlannerApp() {
   const [items, setItems] = useState([]);
   const [activeTab, setActiveTab] = useState("overview");
   const [syncStatus, setSyncStatus] = useState(SERVER_ENABLED ? "Ready" : "Local mode");
-  const [profileOpen, setProfileOpen] = useState(false);
 
-  // Filters for categories
-  const [category, setCategory] = useState("all"); // all | exam | project | daily
+  // Profile menu + modals
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [pomoSettingsOpen, setPomoSettingsOpen] = useState(false);
+
+  // Planner filter (NO "All")
+  const [category, setCategory] = useState("exam"); // exam | project | daily
 
   // Pomodoro state
   const [pomo, setPomo] = useState(() => loadPomo() || defaultPomoState());
@@ -315,9 +339,8 @@ export default function StudyPlannerApp() {
         if (!token) return;
         try {
           setSyncStatus("Syncing…");
-          const data = await api("/modules", { token }); // keep same endpoint for your server
+          const data = await api("/modules", { token });
           if (!cancelled) {
-            // Accept either legacy {examDate} or new {dueDate}
             const normalized = Array.isArray(data)
               ? data.map((x) => ({
                   ...x,
@@ -373,7 +396,7 @@ export default function StudyPlannerApp() {
     localStorage.setItem(itemsKey(user), JSON.stringify(items));
   }, [items, user, token]);
 
-  // ===== Pomodoro ticking (refresh-safe using targetTs) =====
+  // ===== Pomodoro ticking (refresh-safe) =====
   useEffect(() => {
     savePomo(pomo);
 
@@ -381,19 +404,18 @@ export default function StudyPlannerApp() {
       clearInterval(tickRef.current);
       tickRef.current = null;
     }
-
     if (!pomo.isRunning || !pomo.targetTs) return;
 
     tickRef.current = setInterval(() => {
       setPomo((prev) => {
         if (!prev.isRunning || !prev.targetTs) return prev;
+
         const now = Date.now();
         const left = Math.max(0, Math.round((prev.targetTs - now) / 1000));
 
         if (left <= 0) {
-          // Auto advance
           const next = { ...prev, isRunning: false, secondsLeft: 0, targetTs: null };
-          // Cycle focus -> short -> focus -> short -> focus -> long every 4 focus rounds
+          // focus -> short/long, break -> focus
           if (prev.mode === "focus") {
             const nextRounds = prev.rounds + 1;
             const goLong = nextRounds % 4 === 0;
@@ -469,6 +491,7 @@ export default function StudyPlannerApp() {
     setUser("");
     setItems([]);
     setProfileOpen(false);
+    setPomoSettingsOpen(false);
     if (SERVER_ENABLED) {
       clearToken();
       setAuthToken("");
@@ -485,7 +508,6 @@ export default function StudyPlannerApp() {
   const addItem = (type) => {
     const idx = items.filter((x) => x.type === type).length + 1;
     const dt = new Date();
-    // daily starts today; others default +14 days
     dt.setDate(dt.getDate() + (type === "daily" ? 0 : 14));
     const newItem = {
       id: crypto.randomUUID(),
@@ -519,10 +541,7 @@ export default function StudyPlannerApp() {
     setItems((prev) =>
       prev.map((m) =>
         m.id === itemId
-          ? {
-              ...m,
-              tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, status: nextStatus(t.status) } : t)),
-            }
+          ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, status: nextStatus(t.status) } : t)) }
           : m
       )
     );
@@ -550,18 +569,7 @@ export default function StudyPlannerApp() {
     [items, today]
   );
 
-  const filteredItems = useMemo(() => {
-    if (category === "all") return items;
-    return items.filter((x) => x.type === category);
-  }, [items, category]);
-
-  const grouped = useMemo(() => {
-    const g = { exam: [], project: [], daily: [] };
-    for (const it of filteredItems) g[it.type]?.push(it);
-    // sort by due date
-    for (const k of Object.keys(g)) g[k].sort((a, b) => (a.dueDate || "").localeCompare(b.dueDate || ""));
-    return g;
-  }, [filteredItems]);
+  const filteredItems = useMemo(() => items.filter((x) => x.type === category), [items, category]);
 
   const countdownFor = (m) => {
     if (m.type === "daily") return 0;
@@ -587,9 +595,7 @@ export default function StudyPlannerApp() {
       return { ...prev, isRunning: true, targetTs };
     });
   };
-  const pausePomo = () => {
-    setPomo((prev) => ({ ...prev, isRunning: false, targetTs: null }));
-  };
+  const pausePomo = () => setPomo((prev) => ({ ...prev, isRunning: false, targetTs: null }));
   const resetPomo = () => {
     setPomo((prev) => {
       const dur = durationForMode(prev, prev.mode);
@@ -599,7 +605,6 @@ export default function StudyPlannerApp() {
   const updatePomoSetting = (key, val) => {
     setPomo((prev) => {
       const next = { ...prev, [key]: val };
-      // if not running, keep secondsLeft aligned to current mode
       if (!next.isRunning) next.secondsLeft = durationForMode(next, next.mode);
       return next;
     });
@@ -639,15 +644,26 @@ export default function StudyPlannerApp() {
             </button>
 
             {profileOpen && (
-              <div className="absolute right-0 mt-2 w-44 rounded-xl border bg-white shadow-lg overflow-hidden z-30">
+              <div className="absolute right-0 mt-2 w-52 rounded-xl border bg-white shadow-lg overflow-hidden z-30">
                 <div className="px-3 py-2 text-xs text-slate-500 border-b">Account</div>
+
+                <button
+                  onClick={() => {
+                    setPomoSettingsOpen(true);
+                    setProfileOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"
+                >
+                  <IconSettings className="w-4 h-4" />
+                  Pomodoro settings
+                </button>
 
                 <button
                   onClick={resetData}
                   className="w-full px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"
                 >
                   <IconReset className="w-4 h-4" />
-                  Reset
+                  Reset data
                 </button>
 
                 <button
@@ -681,11 +697,10 @@ export default function StudyPlannerApp() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-4 pb-32 md:pb-6">
-        {/* Category filter (not on timer tab) */}
-        {activeTab !== "timer" && (
+        {/* Planner filter (NO 'All') */}
+        {activeTab === "planner" && (
           <div className="mb-4 flex flex-wrap items-center gap-2">
             {[
-              { id: "all", label: "All" },
               { id: "exam", label: "Exams" },
               { id: "project", label: "Projects" },
               { id: "daily", label: "Daily" },
@@ -703,11 +718,11 @@ export default function StudyPlannerApp() {
           </div>
         )}
 
-        {activeTab === "overview" && <Overview grouped={grouped} progressFor={progressFor} countdownFor={countdownFor} />}
+        {activeTab === "overview" && <Overview items={items} progressFor={progressFor} countdownFor={countdownFor} />}
         {activeTab === "today" && <Today todos={todayTodos} setTaskStatus={setTaskStatus} />}
         {activeTab === "planner" && (
           <Planner
-            grouped={grouped}
+            items={filteredItems}
             updateItem={updateItem}
             addTask={addTask}
             addItem={addItem}
@@ -715,16 +730,16 @@ export default function StudyPlannerApp() {
             setTaskStatus={setTaskStatus}
             cycleTaskStatus={cycleTaskStatus}
             progressFor={progressFor}
+            category={category}
           />
         )}
         {activeTab === "timer" && (
-          <Pomodoro
+          <PomodoroClock
             pomo={pomo}
             onSetMode={setPomoMode}
             onStart={startPomo}
             onPause={pausePomo}
             onReset={resetPomo}
-            onUpdateSetting={updatePomoSetting}
           />
         )}
       </main>
@@ -753,12 +768,7 @@ export default function StudyPlannerApp() {
         </div>
       </nav>
 
-      {/* Mini Pomodoro dock (shows on all tabs except timer) */}
-      {activeTab !== "timer" && (
-        <MiniPomoDock pomo={pomo} onGoTimer={() => setActiveTab("timer")} onToggle={pomo.isRunning ? pausePomo : startPomo} />
-      )}
-
-      {/* Click-away for profile dropdown */}
+      {/* Click-away */}
       {profileOpen && (
         <button
           className="fixed inset-0 z-10 cursor-default"
@@ -766,6 +776,29 @@ export default function StudyPlannerApp() {
           aria-label="Close profile menu"
           tabIndex={-1}
         />
+      )}
+
+      {/* Pomodoro settings modal (from profile) */}
+      {pomoSettingsOpen && (
+        <Modal title="Pomodoro Settings" onClose={() => setPomoSettingsOpen(false)}>
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">
+              Adjust durations (minutes). Long break every 4 focus rounds.
+            </p>
+            <SettingRow label="Focus" value={pomo.focusMin} onChange={(v) => updatePomoSetting("focusMin", v)} />
+            <SettingRow label="Short break" value={pomo.shortMin} onChange={(v) => updatePomoSetting("shortMin", v)} />
+            <SettingRow label="Long break" value={pomo.longMin} onChange={(v) => updatePomoSetting("longMin", v)} />
+
+            <div className="pt-2 flex justify-end gap-2">
+              <button
+                onClick={() => setPomoSettingsOpen(false)}
+                className="px-4 py-2 rounded-xl border bg-white"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
@@ -822,12 +855,18 @@ function AuthScreen({ onLogin, onRegister, serverEnabled }) {
   );
 }
 
-// ===================== OVERVIEW =====================
-function Overview({ grouped, progressFor, countdownFor }) {
+// ===================== OVERVIEW (pretty + categorized headers) =====================
+function Overview({ items, progressFor, countdownFor }) {
+  const byType = useMemo(() => {
+    const g = { exam: [], project: [], daily: [] };
+    for (const it of items) g[it.type]?.push(it);
+    return g;
+  }, [items]);
+
   return (
     <section className="space-y-6">
       {["exam", "project", "daily"].map((type) => {
-        const list = grouped[type] || [];
+        const list = byType[type] || [];
         if (!list.length) return null;
         const tm = typeMeta(type);
 
@@ -895,33 +934,36 @@ function Today({ todos, setTaskStatus }) {
     <section className="space-y-3">
       {todos.map((t) => {
         const meta = statusMeta(t.status);
+        const tm = typeMeta(t.type);
         return (
-          <div
-            key={t.id}
-            className="rounded-2xl border bg-white p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
-          >
-            <div className="min-w-0">
-              <div className="text-sm text-slate-500">{t.name}</div>
-              <div className="font-medium truncate">{t.topic}</div>
-            </div>
+          <div key={t.id} className={`rounded-2xl border bg-white p-4 shadow-sm`}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full ring-1 ${tm.chip}`}>{tm.label}</span>
+                  <span className="text-sm text-slate-500 truncate">{t.name}</span>
+                </div>
+                <div className="font-medium truncate mt-1">{t.topic}</div>
+              </div>
 
-            <div className="flex items-center gap-2">
-              <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl ring-1 ${meta.pill} text-sm`}>
-                <StatusIcon status={t.status} className={`w-4 h-4 ${meta.iconColor}`} />
-                <span className="hidden sm:inline">{meta.label}</span>
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={`hidden sm:inline-flex items-center gap-2 px-3 py-2 rounded-xl ring-1 ${meta.pill} text-sm`}>
+                  <StatusIcon status={t.status} className={`w-4 h-4 ${meta.iconColor}`} />
+                  {meta.label}
+                </span>
 
-              <select
-                value={t.status}
-                onChange={(e) => setTaskStatus(t.itemId, t.id, e.target.value)}
-                className="px-3 py-2 rounded-xl border bg-white text-sm"
-              >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+                <select
+                  value={t.status}
+                  onChange={(e) => setTaskStatus(t.itemId, t.id, e.target.value)}
+                  className="px-3 py-2 rounded-xl border bg-white text-sm"
+                >
+                  {STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
         );
@@ -930,239 +972,232 @@ function Today({ todos, setTaskStatus }) {
   );
 }
 
-// ===================== PLANNER =====================
-function Planner({ grouped, updateItem, addTask, addItem, removeTask, setTaskStatus, cycleTaskStatus, progressFor }) {
+// ===================== PLANNER (tinted by type + category label above each card) =====================
+function Planner({ items, updateItem, addTask, addItem, removeTask, setTaskStatus, cycleTaskStatus, progressFor, category }) {
   const [openMap, setOpenMap] = useState({});
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  // default open first visible item
   useEffect(() => {
-    const all = [...(grouped.exam || []), ...(grouped.project || []), ...(grouped.daily || [])];
-    if (!all.length) return;
-    setOpenMap((prev) => (Object.keys(prev).length ? prev : { [all[0].id]: true }));
-  }, [grouped]);
+    if (!items.length) return;
+    setOpenMap((prev) => (Object.keys(prev).length ? prev : { [items[0].id]: true }));
+  }, [items]);
 
   const isOpen = (id) => !!openMap[id];
   const toggle = (id) => setOpenMap((p) => ({ ...p, [id]: !p[id] }));
 
+  const headerTitle = typeMeta(category).label;
+
   return (
-    <section className="space-y-6 relative">
-      {["exam", "project", "daily"].map((type) => {
-        const list = grouped[type] || [];
-        if (!list.length) return null;
-        const tm = typeMeta(type);
+    <section className="space-y-4 relative">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">{headerTitle}</h2>
+
+        <button
+          onClick={() => addItem(category)}
+          className="hidden md:inline-flex px-3 py-2 rounded-xl border bg-white hover:bg-slate-50 text-sm"
+        >
+          + {category === "daily" ? "List" : "Item"}
+        </button>
+      </div>
+
+      {items.map((m) => {
+        const colors = PALETTE[m.colorIdx % PALETTE.length];
+        const tm = typeMeta(m.type);
+        const sortedTasks = (m.tasks || []).slice().sort((a, b) => a.date.localeCompare(b.date));
 
         return (
-          <div key={type} className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className={`text-xs px-2 py-1 rounded-full ring-1 ${tm.chip}`}>{tm.label}</span>
-
-              {/* Desktop add button per category */}
-              <button
-                onClick={() => addItem(type)}
-                className="hidden md:inline-flex px-3 py-2 rounded-xl border bg-white hover:bg-slate-50 text-sm"
-              >
-                + {type === "daily" ? "List" : "Item"}
-              </button>
+          <div key={m.id} className="space-y-2">
+            {/* Category label above */}
+            <div className="flex items-center gap-2">
+              <span className={`text-[11px] px-2 py-0.5 rounded-full ring-1 ${tm.chip}`}>{tm.label}</span>
             </div>
 
-            {list.map((m) => {
-              const colors = PALETTE[m.colorIdx % PALETTE.length];
-              const sortedTasks = (m.tasks || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+            <div className={`rounded-2xl border bg-white shadow-sm overflow-hidden`}>
+              {/* Header */}
+              <div className={`${colors.bg} text-white px-4 py-3`}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    value={m.name}
+                    onChange={(e) => updateItem(m.id, { name: e.target.value })}
+                    className="min-w-[10rem] flex-1 px-3 py-2 rounded-lg text-slate-900 text-sm"
+                  />
 
-              return (
-                <div key={m.id} className="rounded-2xl border bg-white shadow-sm overflow-hidden">
-                  {/* Header (single line, wraps nicely) */}
-                  <div className={`${colors.bg} text-white px-4 py-3`}>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        value={m.name}
-                        onChange={(e) => updateItem(m.id, { name: e.target.value })}
-                        className="min-w-[10rem] flex-1 px-3 py-2 rounded-lg text-slate-900 text-sm"
-                      />
+                  {m.type !== "daily" ? (
+                    <input
+                      type="date"
+                      value={m.dueDate}
+                      onChange={(e) => updateItem(m.id, { dueDate: e.target.value })}
+                      className="px-3 py-2 rounded-lg text-slate-900 text-sm bg-white"
+                      aria-label="Due date"
+                    />
+                  ) : (
+                    <span className="px-3 py-2 rounded-lg bg-white/15 text-sm">Daily</span>
+                  )}
 
-                      {/* Due date only for non-daily */}
-                      {m.type !== "daily" ? (
-                        <input
-                          type="date"
-                          value={m.dueDate}
-                          onChange={(e) => updateItem(m.id, { dueDate: e.target.value })}
-                          className="px-3 py-2 rounded-lg text-slate-900 text-sm bg-white"
-                          aria-label="Due date"
-                        />
-                      ) : (
-                        <span className="px-3 py-2 rounded-lg bg-white/15 text-sm">Daily</span>
-                      )}
+                  <span className="px-2 py-1 rounded-lg bg-white/15 text-xs font-semibold">{progressFor(m)}%</span>
 
-                      <span className="px-2 py-1 rounded-lg bg-white/15 text-xs font-semibold">{progressFor(m)}%</span>
+                  <button
+                    onClick={() => addTask(m.id)}
+                    className="hidden md:inline-flex ml-auto px-3 py-2 rounded-lg bg-white/15 ring-1 ring-white/25 text-sm"
+                  >
+                    + Task
+                  </button>
 
-                      {/* Desktop add task */}
-                      <button
-                        onClick={() => addTask(m.id)}
-                        className="hidden md:inline-flex ml-auto px-3 py-2 rounded-lg bg-white/15 ring-1 ring-white/25 text-sm"
-                      >
-                        + Task
-                      </button>
+                  <button
+                    onClick={() => toggle(m.id)}
+                    className="md:hidden ml-auto px-2 py-2 rounded-lg bg-white/15 ring-1 ring-white/20"
+                    aria-label={isOpen(m.id) ? "Collapse" : "Expand"}
+                    title={isOpen(m.id) ? "Collapse" : "Expand"}
+                  >
+                    {isOpen(m.id) ? "▾" : "▸"}
+                  </button>
+                </div>
+              </div>
 
-                      {/* Mobile collapse */}
-                      <button
-                        onClick={() => toggle(m.id)}
-                        className="md:hidden ml-auto px-2 py-2 rounded-lg bg-white/15 ring-1 ring-white/20"
-                        aria-label={isOpen(m.id) ? "Collapse" : "Expand"}
-                        title={isOpen(m.id) ? "Collapse" : "Expand"}
-                      >
-                        {isOpen(m.id) ? "▾" : "▸"}
-                      </button>
+              {/* Body tinted by type */}
+              <div className={`${isOpen(m.id) ? "block" : "hidden"} md:block p-4 ${tm.tint}`}>
+                {!sortedTasks.length ? (
+                  <p className="text-slate-600">No tasks yet. Tap + to add.</p>
+                ) : (
+                  <>
+                    {/* MOBILE: one line + status icon only */}
+                    <div className="md:hidden space-y-2">
+                      {sortedTasks.map((t) => {
+                        const meta = statusMeta(t.status);
+                        return (
+                          <div key={t.id} className={`flex items-center gap-2`}>
+                            <input
+                              type="date"
+                              value={t.date}
+                              onChange={(e) =>
+                                updateItem(m.id, {
+                                  tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, date: e.target.value } : x)),
+                                })
+                              }
+                              className="w-[9.5rem] shrink-0 px-3 py-2 rounded-lg border text-sm bg-white/70"
+                              aria-label="Task date"
+                            />
+
+                            <input
+                              value={t.topic}
+                              onChange={(e) =>
+                                updateItem(m.id, {
+                                  tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, topic: e.target.value } : x)),
+                                })
+                              }
+                              className="flex-1 min-w-0 px-3 py-2 rounded-lg border text-sm bg-white"
+                              aria-label="Task topic"
+                            />
+
+                            <button
+                              onClick={() => cycleTaskStatus(m.id, t.id)}
+                              className={`w-11 h-11 shrink-0 grid place-items-center rounded-lg ring-1 ${meta.pill}`}
+                              aria-label={`Status: ${meta.label} (tap to change)`}
+                              title={`Status: ${meta.label} (tap to change)`}
+                            >
+                              <StatusIcon status={t.status} className={`w-5 h-5 ${meta.iconColor}`} />
+                            </button>
+
+                            <button
+                              onClick={() => removeTask(m.id, t.id)}
+                              className="w-11 h-11 shrink-0 grid place-items-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600"
+                              aria-label="Delete task"
+                              title="Delete"
+                            >
+                              <IconTrash className="w-5 h-5" />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
 
-                  {/* Body */}
-                  <div className={`${isOpen(m.id) ? "block" : "hidden"} md:block p-4`}>
-                    {!sortedTasks.length ? (
-                      <p className="text-slate-600">No tasks yet. Tap + to add.</p>
-                    ) : (
-                      <>
-                        {/* MOBILE: everything on ONE line + status ICON ONLY */}
-                        <div className="md:hidden space-y-2">
+                    {/* DESKTOP: status pill + select */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-slate-600">
+                            <th className="py-2 pr-4">Date</th>
+                            <th className="py-2 pr-4">Task</th>
+                            <th className="py-2 pr-4">Status</th>
+                            <th className="py-2 pr-4">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
                           {sortedTasks.map((t) => {
                             const meta = statusMeta(t.status);
                             return (
-                              <div key={t.id} className="flex items-center gap-2">
-                                <input
-                                  type="date"
-                                  value={t.date}
-                                  onChange={(e) =>
-                                    updateItem(m.id, {
-                                      tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, date: e.target.value } : x)),
-                                    })
-                                  }
-                                  className="w-[9.5rem] shrink-0 px-3 py-2 rounded-lg border text-sm bg-slate-50"
-                                  aria-label="Task date"
-                                />
+                              <tr key={t.id} className="border-t border-slate-200/60">
+                                <td className="py-2 pr-4 whitespace-nowrap">
+                                  <input
+                                    type="date"
+                                    value={t.date}
+                                    onChange={(e) =>
+                                      updateItem(m.id, {
+                                        tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, date: e.target.value } : x)),
+                                      })
+                                    }
+                                    className="px-2 py-1 rounded-lg border bg-white"
+                                  />
+                                </td>
 
-                                <input
-                                  value={t.topic}
-                                  onChange={(e) =>
-                                    updateItem(m.id, {
-                                      tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, topic: e.target.value } : x)),
-                                    })
-                                  }
-                                  className="flex-1 min-w-0 px-3 py-2 rounded-lg border text-sm"
-                                  aria-label="Task topic"
-                                />
+                                <td className="py-2 pr-4 w-full">
+                                  <input
+                                    value={t.topic}
+                                    onChange={(e) =>
+                                      updateItem(m.id, {
+                                        tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, topic: e.target.value } : x)),
+                                      })
+                                    }
+                                    className="w-full px-3 py-1 rounded-lg border bg-white"
+                                  />
+                                </td>
 
-                                {/* Mobile status: ICON ONLY, tap to cycle */}
-                                <button
-                                  onClick={() => cycleTaskStatus(m.id, t.id)}
-                                  className={`w-11 h-11 shrink-0 grid place-items-center rounded-lg ring-1 ${meta.pill}`}
-                                  aria-label={`Status: ${meta.label} (tap to change)`}
-                                  title={`Status: ${meta.label} (tap to change)`}
-                                >
-                                  <StatusIcon status={t.status} className={`w-5 h-5 ${meta.iconColor}`} />
-                                </button>
+                                <td className="py-2 pr-4">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`inline-flex items-center gap-2 px-2 py-1 rounded-lg ring-1 ${meta.pill}`}>
+                                      <StatusIcon status={t.status} className={`w-4 h-4 ${meta.iconColor}`} />
+                                      {meta.label}
+                                    </span>
 
-                                <button
-                                  onClick={() => removeTask(m.id, t.id)}
-                                  className="w-11 h-11 shrink-0 grid place-items-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600"
-                                  aria-label="Delete task"
-                                  title="Delete"
-                                >
-                                  <IconTrash className="w-5 h-5" />
-                                </button>
-                              </div>
+                                    <select
+                                      value={t.status}
+                                      onChange={(e) => setTaskStatus(m.id, t.id, e.target.value)}
+                                      className="px-2 py-1 rounded-lg border bg-white"
+                                    >
+                                      {STATUSES.map((s) => (
+                                        <option key={s} value={s}>
+                                          {s}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </td>
+
+                                <td className="py-2 pr-4">
+                                  <button
+                                    onClick={() => removeTask(m.id, t.id)}
+                                    className="px-2 py-2 rounded-lg border bg-white hover:bg-slate-50 inline-flex items-center justify-center"
+                                    aria-label="Delete task"
+                                    title="Delete"
+                                  >
+                                    <IconTrash className="w-4 h-4" />
+                                  </button>
+                                </td>
+                              </tr>
                             );
                           })}
-                        </div>
-
-                        {/* DESKTOP: status pill + icon + select */}
-                        <div className="hidden md:block overflow-x-auto">
-                          <table className="min-w-full text-sm">
-                            <thead>
-                              <tr className="text-left text-slate-600">
-                                <th className="py-2 pr-4">Date</th>
-                                <th className="py-2 pr-4">Task</th>
-                                <th className="py-2 pr-4">Status</th>
-                                <th className="py-2 pr-4">Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {sortedTasks.map((t) => {
-                                const meta = statusMeta(t.status);
-                                return (
-                                  <tr key={t.id} className="border-t">
-                                    <td className="py-2 pr-4 whitespace-nowrap">
-                                      <input
-                                        type="date"
-                                        value={t.date}
-                                        onChange={(e) =>
-                                          updateItem(m.id, {
-                                            tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, date: e.target.value } : x)),
-                                          })
-                                        }
-                                        className="px-2 py-1 rounded-lg border"
-                                      />
-                                    </td>
-
-                                    <td className="py-2 pr-4 w-full">
-                                      <input
-                                        value={t.topic}
-                                        onChange={(e) =>
-                                          updateItem(m.id, {
-                                            tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, topic: e.target.value } : x)),
-                                          })
-                                        }
-                                        className="w-full px-3 py-1 rounded-lg border"
-                                      />
-                                    </td>
-
-                                    <td className="py-2 pr-4">
-                                      <div className="flex items-center gap-2">
-                                        <span className={`inline-flex items-center gap-2 px-2 py-1 rounded-lg ring-1 ${meta.pill}`}>
-                                          <StatusIcon status={t.status} className={`w-4 h-4 ${meta.iconColor}`} />
-                                          {meta.label}
-                                        </span>
-
-                                        <select
-                                          value={t.status}
-                                          onChange={(e) => setTaskStatus(m.id, t.id, e.target.value)}
-                                          className="px-2 py-1 rounded-lg border bg-white"
-                                        >
-                                          {STATUSES.map((s) => (
-                                            <option key={s} value={s}>
-                                              {s}
-                                            </option>
-                                          ))}
-                                        </select>
-                                      </div>
-                                    </td>
-
-                                    <td className="py-2 pr-4">
-                                      <button
-                                        onClick={() => removeTask(m.id, t.id)}
-                                        className="px-2 py-2 rounded-lg border hover:bg-slate-50 inline-flex items-center justify-center"
-                                        aria-label="Delete task"
-                                        title="Delete"
-                                      >
-                                        <IconTrash className="w-4 h-4" />
-                                      </button>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         );
       })}
 
-      {/* MOBILE: single + button (add task OR new item OR new list) */}
+      {/* MOBILE: single + (add task OR new item) */}
       <button
         onClick={() => setPickerOpen(true)}
         className="md:hidden fixed right-5 bottom-20 z-40 w-14 h-14 rounded-full bg-slate-900 text-white shadow-lg grid place-items-center"
@@ -1174,7 +1209,8 @@ function Planner({ grouped, updateItem, addTask, addItem, removeTask, setTaskSta
 
       {pickerOpen && (
         <AddPickerSheet
-          grouped={grouped}
+          items={items}
+          currentType={category}
           onClose={() => setPickerOpen(false)}
           onAddTask={addTask}
           onAddItem={addItem}
@@ -1184,9 +1220,8 @@ function Planner({ grouped, updateItem, addTask, addItem, removeTask, setTaskSta
   );
 }
 
-function AddPickerSheet({ grouped, onClose, onAddTask, onAddItem }) {
-  const all = [...(grouped.exam || []), ...(grouped.project || []), ...(grouped.daily || [])];
-
+function AddPickerSheet({ items, currentType, onClose, onAddTask, onAddItem }) {
+  const tm = typeMeta(currentType);
   return (
     <div className="md:hidden fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
@@ -1199,28 +1234,27 @@ function AddPickerSheet({ grouped, onClose, onAddTask, onAddItem }) {
         </div>
 
         <div className="mt-3 grid gap-2">
-          <div className="grid grid-cols-3 gap-2">
-            <button onClick={() => { onAddItem("exam"); onClose(); }} className="rounded-xl border px-3 py-3 text-left">
-              <div className="font-medium text-sm">New Exam</div>
-              <div className="text-xs text-slate-500 mt-0.5">Item</div>
-            </button>
-            <button onClick={() => { onAddItem("project"); onClose(); }} className="rounded-xl border px-3 py-3 text-left">
-              <div className="font-medium text-sm">New Project</div>
-              <div className="text-xs text-slate-500 mt-0.5">Item</div>
-            </button>
-            <button onClick={() => { onAddItem("daily"); onClose(); }} className="rounded-xl border px-3 py-3 text-left">
-              <div className="font-medium text-sm">New Daily</div>
-              <div className="text-xs text-slate-500 mt-0.5">List</div>
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              onAddItem(currentType);
+              onClose();
+            }}
+            className="w-full rounded-xl border px-3 py-3 text-left"
+          >
+            <div className="flex items-center gap-2">
+              <span className={`text-[11px] px-2 py-0.5 rounded-full ring-1 ${tm.chip}`}>{tm.label}</span>
+              <div className="font-medium text-sm">New {currentType === "daily" ? "list" : "item"}</div>
+            </div>
+            <div className="text-xs text-slate-500 mt-0.5">Creates a new card in this category</div>
+          </button>
         </div>
 
         <div className="mt-4">
           <div className="text-xs text-slate-500 mb-2">New task → choose where</div>
           <div className="grid gap-2 max-h-64 overflow-auto pr-1">
-            {all.map((m) => {
+            {items.map((m) => {
               const colors = PALETTE[m.colorIdx % PALETTE.length];
-              const tm = typeMeta(m.type);
+              const cat = typeMeta(m.type);
               return (
                 <button
                   key={m.id}
@@ -1233,7 +1267,7 @@ function AddPickerSheet({ grouped, onClose, onAddTask, onAddItem }) {
                   <div className="flex items-center gap-2 min-w-0">
                     <span className={`w-2.5 h-2.5 rounded-full ${colors.bg}`} />
                     <span className="truncate font-medium">{m.name}</span>
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full ring-1 ${tm.chip}`}>{tm.label}</span>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full ring-1 ${cat.chip}`}>{cat.label}</span>
                   </div>
                   <span className="text-xs text-slate-500">{m.type === "daily" ? "—" : m.dueDate}</span>
                 </button>
@@ -1246,9 +1280,42 @@ function AddPickerSheet({ grouped, onClose, onAddTask, onAddItem }) {
   );
 }
 
-// ===================== POMODORO =====================
-function Pomodoro({ pomo, onSetMode, onStart, onPause, onReset, onUpdateSetting }) {
+// ===================== TIMER (clock style) =====================
+function PomodoroClock({ pomo, onSetMode, onStart, onPause, onReset }) {
   const modeLabel = pomo.mode === "focus" ? "Focus" : pomo.mode === "short" ? "Short Break" : "Long Break";
+  const total = useMemo(() => {
+    const focus = pomo.focusMin * 60;
+    const short = pomo.shortMin * 60;
+    const long = pomo.longMin * 60;
+    if (pomo.mode === "short") return short;
+    if (pomo.mode === "long") return long;
+    return focus;
+  }, [pomo.mode, pomo.focusMin, pomo.shortMin, pomo.longMin]);
+
+  const progress = total > 0 ? 1 - pomo.secondsLeft / total : 0;
+
+  // SVG ring
+  const size = 280;
+  const r = 110;
+  const c = 2 * Math.PI * r;
+  const dash = c * clamp(progress, 0, 1);
+  const dashOffset = c - dash;
+
+  // "clock hand" angle (start at -90deg)
+  const angle = -90 + 360 * clamp(progress, 0, 1);
+  const handLen = 85;
+  const cx = size / 2;
+  const cy = size / 2;
+
+  const handX = cx + handLen * Math.cos((angle * Math.PI) / 180);
+  const handY = cy + handLen * Math.sin((angle * Math.PI) / 180);
+
+  const chip =
+    pomo.mode === "focus"
+      ? "bg-slate-900 text-white"
+      : pomo.mode === "short"
+      ? "bg-amber-100 text-amber-900 border border-amber-200"
+      : "bg-emerald-100 text-emerald-900 border border-emerald-200";
 
   return (
     <section className="grid lg:grid-cols-2 gap-4">
@@ -1256,82 +1323,180 @@ function Pomodoro({ pomo, onSetMode, onStart, onPause, onReset, onUpdateSetting 
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">Pomodoro</h2>
-            <p className="text-sm text-slate-500">{modeLabel} • Round {pomo.rounds}</p>
+            <p className="text-sm text-slate-500">
+              {modeLabel} • Round {pomo.rounds}
+            </p>
           </div>
 
-          <span className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border bg-white text-sm">
-            <IconStopwatch className="w-4 h-4" />
-            {pomo.isRunning ? "Running" : "Paused"}
-          </span>
+          <span className={`px-3 py-2 rounded-xl text-sm ${chip}`}>{pomo.isRunning ? "Running" : "Paused"}</span>
         </div>
 
-        <div className="mt-6 text-center">
-          <div className="text-6xl font-semibold tracking-tight">{formatMMSS(pomo.secondsLeft)}</div>
-          <div className="mt-2 flex flex-wrap justify-center gap-2">
-            <button
-              onClick={() => onSetMode("focus")}
-              className={`px-3 py-2 rounded-xl border text-sm ${pomo.mode === "focus" ? "bg-slate-900 text-white" : "bg-white"}`}
-            >
-              Focus
-            </button>
-            <button
-              onClick={() => onSetMode("short")}
-              className={`px-3 py-2 rounded-xl border text-sm ${pomo.mode === "short" ? "bg-slate-900 text-white" : "bg-white"}`}
-            >
-              Short
-            </button>
-            <button
-              onClick={() => onSetMode("long")}
-              className={`px-3 py-2 rounded-xl border text-sm ${pomo.mode === "long" ? "bg-slate-900 text-white" : "bg-white"}`}
-            >
-              Long
-            </button>
-          </div>
+        <div className="mt-6 flex justify-center">
+          <div className="relative" style={{ width: size, height: size }}>
+            {/* Dial */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-b from-slate-50 to-white border shadow-sm" />
 
-          <div className="mt-5 flex justify-center gap-2">
-            <button
-              onClick={pomo.isRunning ? onPause : onStart}
-              className="px-4 py-2 rounded-xl bg-slate-900 text-white"
-            >
-              {pomo.isRunning ? "Pause" : "Start"}
-            </button>
-            <button onClick={onReset} className="px-4 py-2 rounded-xl border bg-white">
-              Reset
-            </button>
+            {/* Ticks */}
+            <svg className="absolute inset-0" viewBox={`0 0 ${size} ${size}`}>
+              {[...Array(60)].map((_, i) => {
+                const a = (-90 + i * 6) * (Math.PI / 180);
+                const outer = r + 18;
+                const inner = i % 5 === 0 ? r + 6 : r + 12;
+                const x1 = cx + outer * Math.cos(a);
+                const y1 = cy + outer * Math.sin(a);
+                const x2 = cx + inner * Math.cos(a);
+                const y2 = cy + inner * Math.sin(a);
+                return (
+                  <line
+                    key={i}
+                    x1={x1}
+                    y1={y1}
+                    x2={x2}
+                    y2={y2}
+                    stroke="rgba(15,23,42,0.22)"
+                    strokeWidth={i % 5 === 0 ? 2 : 1}
+                    strokeLinecap="round"
+                  />
+                );
+              })}
+            </svg>
+
+            {/* Progress ring */}
+            <svg className="absolute inset-0" viewBox={`0 0 ${size} ${size}`}>
+              <circle
+                cx={cx}
+                cy={cy}
+                r={r}
+                fill="none"
+                stroke="rgba(148,163,184,0.35)"
+                strokeWidth="14"
+              />
+              <circle
+                cx={cx}
+                cy={cy}
+                r={r}
+                fill="none"
+                stroke="rgba(15,23,42,0.95)"
+                strokeWidth="14"
+                strokeLinecap="round"
+                strokeDasharray={c}
+                strokeDashoffset={dashOffset}
+                transform={`rotate(-90 ${cx} ${cy})`}
+              />
+            </svg>
+
+            {/* Hand */}
+            <svg className="absolute inset-0" viewBox={`0 0 ${size} ${size}`}>
+              <line
+                x1={cx}
+                y1={cy}
+                x2={handX}
+                y2={handY}
+                stroke="rgba(15,23,42,0.9)"
+                strokeWidth="3"
+                strokeLinecap="round"
+              />
+              <circle cx={cx} cy={cy} r="6" fill="rgba(15,23,42,0.9)" />
+            </svg>
+
+            {/* Center readout */}
+            <div className="absolute inset-0 grid place-items-center">
+              <div className="text-center">
+                <div className="text-5xl font-semibold tracking-tight">{formatMMSS(pomo.secondsLeft)}</div>
+                <div className="mt-2 text-sm text-slate-500">{modeLabel}</div>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Mode buttons */}
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <ModeBtn active={pomo.mode === "focus"} onClick={() => onSetMode("focus")}>
+            Focus
+          </ModeBtn>
+          <ModeBtn active={pomo.mode === "short"} onClick={() => onSetMode("short")}>
+            Short
+          </ModeBtn>
+          <ModeBtn active={pomo.mode === "long"} onClick={() => onSetMode("long")}>
+            Long
+          </ModeBtn>
+        </div>
+
+        {/* ICON controls */}
+        <div className="mt-5 flex justify-center gap-3">
+          <IconButton
+            label={pomo.isRunning ? "Pause" : "Start"}
+            onClick={pomo.isRunning ? onPause : onStart}
+            primary
+          >
+            {pomo.isRunning ? <IconPause className="w-5 h-5" /> : <IconPlay className="w-5 h-5" />}
+          </IconButton>
+
+          <IconButton label="Reset" onClick={onReset}>
+            <IconReset className="w-5 h-5" />
+          </IconButton>
+        </div>
+
+        <p className="mt-4 text-xs text-slate-500 text-center">
+          Settings are in Profile → Pomodoro settings.
+        </p>
       </div>
 
+      {/* Right card: simple info + vibes */}
       <div className="rounded-2xl border bg-white p-5 shadow-sm">
-        <h3 className="font-semibold">Settings</h3>
-        <p className="text-sm text-slate-500 mt-1">Adjust durations (minutes). Auto-cycles long break every 4 focus rounds.</p>
-
-        <div className="mt-4 grid gap-3">
-          <SettingRow
-            label="Focus"
-            value={pomo.focusMin}
-            onChange={(v) => onUpdateSetting("focusMin", v)}
-          />
-          <SettingRow
-            label="Short break"
-            value={pomo.shortMin}
-            onChange={(v) => onUpdateSetting("shortMin", v)}
-          />
-          <SettingRow
-            label="Long break"
-            value={pomo.longMin}
-            onChange={(v) => onUpdateSetting("longMin", v)}
-          />
+        <h3 className="font-semibold">How to use</h3>
+        <div className="mt-2 text-sm text-slate-600 space-y-2">
+          <p>
+            Use <b>Focus</b> for deep work, then take a <b>Short</b> break.
+          </p>
+          <p>
+            Every 4 focus rounds, you’ll naturally want a <b>Long</b> break — the timer supports that flow.
+          </p>
+          <p>
+            Keep this tab open while working, or just switch back and forth as needed.
+          </p>
         </div>
 
-        <div className="mt-5 rounded-xl border bg-slate-50 p-3 text-sm text-slate-700">
-          Tip: Use the mini dock at the bottom to start/pause from any screen.
+        <div className="mt-4 rounded-2xl border bg-slate-50 p-4">
+          <div className="text-sm font-medium">Quick idea</div>
+          <div className="text-sm text-slate-600 mt-1">
+            For your “multi-use” productivity vibe: create a <b>Daily</b> list like “Morning Reset” and throw all tiny tasks there.
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
+function ModeBtn({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-2 rounded-xl border text-sm ${
+        active ? "bg-slate-900 text-white" : "bg-white hover:bg-slate-50"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function IconButton({ label, onClick, children, primary }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-12 h-12 rounded-2xl grid place-items-center border shadow-sm ${
+        primary ? "bg-slate-900 text-white border-slate-900" : "bg-white hover:bg-slate-50"
+      }`}
+      aria-label={label}
+      title={label}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ===================== SETTINGS UI =====================
 function SettingRow({ label, value, onChange }) {
   return (
     <div className="flex items-center justify-between gap-3">
@@ -1362,27 +1527,20 @@ function SettingRow({ label, value, onChange }) {
   );
 }
 
-function MiniPomoDock({ pomo, onGoTimer, onToggle }) {
-  const meta = pomo.isRunning ? { label: "Pause", icon: <IconCircleX className="w-4 h-4" /> } : { label: "Start", icon: <IconStopwatch className="w-4 h-4" /> };
-  const modeLabel = pomo.mode === "focus" ? "Focus" : pomo.mode === "short" ? "Short" : "Long";
-
+function Modal({ title, onClose, children }) {
   return (
-    <div className="fixed left-3 right-3 bottom-20 md:bottom-5 z-40 max-w-6xl mx-auto">
-      <div className="rounded-2xl border bg-white/90 backdrop-blur shadow-lg px-3 py-2 flex items-center justify-between gap-3">
-        <button onClick={onGoTimer} className="flex items-center gap-2 min-w-0">
-          <IconStopwatch className="w-4 h-4 text-slate-700" />
-          <span className="text-sm font-medium truncate">
-            {modeLabel} • {formatMMSS(pomo.secondsLeft)}
-          </span>
-        </button>
-
-        <button
-          onClick={onToggle}
-          className="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm inline-flex items-center gap-2"
-        >
-          {meta.icon}
-          {meta.label}
-        </button>
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/35" onClick={onClose} />
+      <div className="absolute inset-x-0 top-16 mx-auto max-w-lg px-4">
+        <div className="rounded-2xl border bg-white shadow-xl overflow-hidden">
+          <div className="px-4 py-3 border-b flex items-center justify-between">
+            <div className="font-semibold">{title}</div>
+            <button onClick={onClose} className="px-3 py-2 rounded-xl border bg-white text-sm">
+              Close
+            </button>
+          </div>
+          <div className="p-4">{children}</div>
+        </div>
       </div>
     </div>
   );
