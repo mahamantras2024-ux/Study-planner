@@ -73,7 +73,7 @@ async function api(path, { method = "GET", body, token } = {}) {
   return data;
 }
 
-// ========== Default modules (NO default tasks, NO "5 only") ==========
+// ========== Default modules ==========
 const DEFAULT_MODULES = () => {
   const today = new Date();
   const d = (offset) => {
@@ -297,7 +297,7 @@ export default function StudyPlannerApp() {
   const addModule = () => {
     const idx = modules.length + 1;
     const dt = new Date();
-    dt.setDate(dt.getDate() + 21 + Math.min(modules.length * 3, 45));
+    dt.setDate(dt.getDate() + 21 + Math.min(modules.length * 3, 60));
     const newMod = {
       id: crypto.randomUUID(),
       name: `Module ${idx}`,
@@ -378,7 +378,7 @@ export default function StudyPlannerApp() {
             </div>
           </div>
 
-          {/* Profile icon with dropdown (Logout inside) */}
+          {/* Profile icon with dropdown (Reset + Logout inside) */}
           <div className="relative">
             <button
               onClick={() => setProfileOpen((v) => !v)}
@@ -390,7 +390,7 @@ export default function StudyPlannerApp() {
             </button>
 
             {profileOpen && (
-              <div className="absolute right-0 mt-2 w-44 rounded-xl border bg-white shadow-lg overflow-hidden">
+              <div className="absolute right-0 mt-2 w-44 rounded-xl border bg-white shadow-lg overflow-hidden z-30">
                 <div className="px-3 py-2 text-xs text-slate-500 border-b">Account</div>
 
                 <button
@@ -597,15 +597,13 @@ function Today({ todos, setTaskStatus }) {
 
 /**
  * Planner:
- * ✅ Mobile single + button (action picker)
+ * ✅ Task row: DATE + TOPIC + STATUS + DELETE all on ONE line (mobile)
  * ✅ Unlimited modules
- * ✅ Exam date on same header line
- * ✅ Delete icon buttons
+ * ✅ Mobile single + button with action picker (task/module)
  */
 function Planner({ modules, updateModule, addTask, addModule, removeTask, setTaskStatus, progressFor }) {
   const [openMap, setOpenMap] = useState({});
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerMode, setPickerMode] = useState("task"); // "task" | "module"
 
   useEffect(() => {
     if (!modules?.length) return;
@@ -618,11 +616,6 @@ function Planner({ modules, updateModule, addTask, addModule, removeTask, setTas
 
   const isOpen = (id) => !!openMap[id];
   const toggle = (id) => setOpenMap((prev) => ({ ...prev, [id]: !prev[id] }));
-
-  const openActionPicker = () => {
-    setPickerMode("task");
-    setPickerOpen(true);
-  };
 
   return (
     <section className="space-y-6 relative">
@@ -684,59 +677,58 @@ function Planner({ modules, updateModule, addTask, addModule, removeTask, setTas
                 <p className="text-slate-600">No tasks yet. Tap + to add.</p>
               ) : (
                 <>
-                  {/* MOBILE: task cards */}
-                  <div className="space-y-3 md:hidden">
+                  {/* MOBILE: single-line rows */}
+                  <div className="md:hidden space-y-2">
                     {sortedTasks.map((t) => (
-                      <div key={t.id} className="rounded-xl border bg-white p-3 shadow-sm">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="date"
-                            value={t.date}
-                            onChange={(e) =>
-                              updateModule(m.id, {
-                                tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, date: e.target.value } : x)),
-                              })
-                            }
-                            className="flex-1 px-3 py-2 rounded-lg border text-sm bg-slate-50"
-                          />
+                      <div key={t.id} className="flex items-center gap-2">
+                        {/* Date */}
+                        <input
+                          type="date"
+                          value={t.date}
+                          onChange={(e) =>
+                            updateModule(m.id, {
+                              tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, date: e.target.value } : x)),
+                            })
+                          }
+                          className="w-[9.5rem] shrink-0 px-3 py-2 rounded-lg border text-sm bg-slate-50"
+                          aria-label="Task date"
+                        />
 
-                          <button
-                            onClick={() => removeTask(m.id, t.id)}
-                            className="w-11 h-11 grid place-items-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600"
-                            aria-label="Delete task"
-                            title="Delete"
-                          >
-                            <IconTrash className="w-5 h-5" />
-                          </button>
-                        </div>
+                        {/* Topic */}
+                        <input
+                          value={t.topic}
+                          onChange={(e) =>
+                            updateModule(m.id, {
+                              tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, topic: e.target.value } : x)),
+                            })
+                          }
+                          className="flex-1 min-w-0 px-3 py-2 rounded-lg border text-sm"
+                          aria-label="Task topic"
+                        />
 
-                        <div className="mt-2">
-                          <label className="text-xs text-slate-500">Topic</label>
-                          <input
-                            value={t.topic}
-                            onChange={(e) =>
-                              updateModule(m.id, {
-                                tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, topic: e.target.value } : x)),
-                              })
-                            }
-                            className="w-full mt-1 px-3 py-2 rounded-lg border text-sm"
-                          />
-                        </div>
+                        {/* Status */}
+                        <select
+                          value={t.status}
+                          onChange={(e) => setTaskStatus(m.id, t.id, e.target.value)}
+                          className="w-[8.75rem] shrink-0 px-3 py-2 rounded-lg border text-sm bg-white"
+                          aria-label="Task status"
+                        >
+                          {["Not Started", "In Progress", "Done"].map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </select>
 
-                        <div className="mt-2 flex items-center gap-2">
-                          <label className="text-xs text-slate-500 w-14">Status</label>
-                          <select
-                            value={t.status}
-                            onChange={(e) => setTaskStatus(m.id, t.id, e.target.value)}
-                            className="flex-1 px-3 py-2 rounded-lg border text-sm bg-white"
-                          >
-                            {["Not Started", "In Progress", "Done"].map((s) => (
-                              <option key={s} value={s}>
-                                {s}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                        {/* Delete icon */}
+                        <button
+                          onClick={() => removeTask(m.id, t.id)}
+                          className="w-11 h-11 shrink-0 grid place-items-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600"
+                          aria-label="Delete task"
+                          title="Delete"
+                        >
+                          <IconTrash className="w-5 h-5" />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -813,12 +805,9 @@ function Planner({ modules, updateModule, addTask, addModule, removeTask, setTas
         );
       })}
 
-      {/* MOBILE: single + button -> action picker */}
+      {/* MOBILE: single + button -> action + module picker */}
       <button
-        onClick={() => {
-          setPickerMode("task");
-          setPickerOpen(true);
-        }}
+        onClick={() => setPickerOpen(true)}
         className="md:hidden fixed right-5 bottom-20 z-40 w-14 h-14 rounded-full bg-slate-900 text-white shadow-lg grid place-items-center"
         aria-label="Add"
         title="Add"
@@ -826,76 +815,67 @@ function Planner({ modules, updateModule, addTask, addModule, removeTask, setTas
         <IconPlus className="w-6 h-6" />
       </button>
 
-      {/* Action picker (mobile) */}
       {pickerOpen && (
-        <div className="md:hidden fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setPickerOpen(false)} />
-          <div className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl border-t shadow-xl p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold">Create…</h3>
-              <button onClick={() => setPickerOpen(false)} className="px-3 py-2 rounded-lg border text-sm">
-                Close
-              </button>
-            </div>
-
-            <div className="mt-3 grid gap-2">
-              <button
-                onClick={() => {
-                  // Choose module to add task to
-                  setPickerMode("task");
-                }}
-                className={`w-full rounded-xl border px-3 py-3 text-left ${pickerMode === "task" ? "bg-slate-50" : ""}`}
-              >
-                <div className="font-medium">New task</div>
-                <div className="text-xs text-slate-500 mt-0.5">Add a task to a module</div>
-              </button>
-
-              <button
-                onClick={() => {
-                  addModule();
-                  setPickerOpen(false);
-                }}
-                className="w-full rounded-xl border px-3 py-3 text-left"
-              >
-                <div className="font-medium">New module</div>
-                <div className="text-xs text-slate-500 mt-0.5">Create a new module (unlimited)</div>
-              </button>
-            </div>
-
-            {/* If mode is task, show module list */}
-            <div className="mt-4">
-              <div className="text-xs text-slate-500 mb-2">Pick a module for the new task</div>
-              <div className="grid gap-2 max-h-64 overflow-auto pr-1">
-                {modules.map((m) => {
-                  const colors = PALETTE[m.colorIdx % PALETTE.length];
-                  return (
-                    <button
-                      key={m.id}
-                      onClick={() => {
-                        addTask(m.id);
-                        // auto-open that module so user sees the new task
-                        setOpenMap((prev) => ({ ...prev, [m.id]: true }));
-                        setPickerOpen(false);
-                      }}
-                      className="w-full flex items-center justify-between rounded-xl border px-3 py-3 text-left"
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className={`w-2.5 h-2.5 rounded-full ${colors.bg}`} />
-                        <span className="truncate font-medium">{m.name}</span>
-                      </div>
-                      <span className="text-xs text-slate-500">{m.examDate}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <p className="mt-3 text-xs text-slate-500">
-              Tip: Task creation asks where to put it. Module creation happens instantly.
-            </p>
-          </div>
-        </div>
+        <AddPickerSheet
+          modules={modules}
+          onClose={() => setPickerOpen(false)}
+          onAddModule={() => {
+            addModule();
+            setPickerOpen(false);
+          }}
+          onAddTask={(modId) => {
+            addTask(modId);
+            setPickerOpen(false);
+          }}
+        />
       )}
     </section>
+  );
+}
+
+function AddPickerSheet({ modules, onClose, onAddModule, onAddTask }) {
+  return (
+    <div className="md:hidden fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl border-t shadow-xl p-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">Add</h3>
+          <button onClick={onClose} className="px-3 py-2 rounded-lg border text-sm">
+            Close
+          </button>
+        </div>
+
+        <div className="mt-3 grid gap-2">
+          <button onClick={onAddModule} className="w-full rounded-xl border px-3 py-3 text-left">
+            <div className="font-medium">New module</div>
+            <div className="text-xs text-slate-500 mt-0.5">Create a module (unlimited)</div>
+          </button>
+        </div>
+
+        <div className="mt-4">
+          <div className="text-xs text-slate-500 mb-2">New task → choose module</div>
+          <div className="grid gap-2 max-h-64 overflow-auto pr-1">
+            {modules.map((m) => {
+              const colors = PALETTE[m.colorIdx % PALETTE.length];
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => onAddTask(m.id)}
+                  className="w-full flex items-center justify-between rounded-xl border px-3 py-3 text-left"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`w-2.5 h-2.5 rounded-full ${colors.bg}`} />
+                    <span className="truncate font-medium">{m.name}</span>
+                  </div>
+                  <span className="text-xs text-slate-500">{m.examDate}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <p className="mt-3 text-xs text-slate-500">Everything stays on one line in mobile rows now ✅</p>
+      </div>
+    </div>
   );
 }
