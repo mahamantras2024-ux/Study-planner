@@ -961,7 +961,7 @@ function DailyBoard({ items, today, addDailyTask, updateItem, removeTask, setTas
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-end">
         <button
           onClick={addDailyTask}
           className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white border border-slate-900"
