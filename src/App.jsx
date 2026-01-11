@@ -739,7 +739,7 @@ export default function StudyPlannerApp() {
                     {c.label}
                   </button>
                 ))}
-
+                {/* ROW 2 — SEPARATE LINE */}
                 {category !== "daily" && (
                   <div className="flex justify-end mt-4">
                     <button
