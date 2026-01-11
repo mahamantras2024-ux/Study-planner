@@ -748,7 +748,7 @@ export default function StudyPlannerApp() {
                     title="Add item"
                   >
                     <IconPlus className="w-4 h-4" />
-                    Item
+                    Itemlol
                   </button>
                 )}
 
