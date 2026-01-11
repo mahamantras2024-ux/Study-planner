@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 // === Helper utils ===
 const pad = (n) => String(n).padStart(2, "0");
@@ -7,14 +7,16 @@ const parseYMD = (s) => {
   const [y, m, dd] = s.split("-").map(Number);
   return new Date(y, m - 1, dd);
 };
+const daysBetween = (d1, d2) =>
+  Math.ceil((parseYMD(fmtYMD(d2)) - parseYMD(fmtYMD(d1))) / (1000 * 60 * 60 * 24));
 
-// Fixed palette per module/project (cute-ish)
+// Fixed palette per module (no user choice)
 const PALETTE = [
-  { name: "Blueberry", bg: "bg-indigo-500", soft: "bg-indigo-50", text: "text-indigo-700", dot: "bg-indigo-500" },
-  { name: "Mint", bg: "bg-emerald-500", soft: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" },
-  { name: "Strawberry", bg: "bg-rose-500", soft: "bg-rose-50", text: "text-rose-700", dot: "bg-rose-500" },
-  { name: "Mango", bg: "bg-amber-500", soft: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" },
-  { name: "Grape", bg: "bg-violet-500", soft: "bg-violet-50", text: "text-violet-700", dot: "bg-violet-500" },
+  { name: "Royal", bg: "bg-indigo-600", ring: "ring-indigo-300", pill: "bg-indigo-50 text-indigo-700" },
+  { name: "Teal", bg: "bg-teal-600", ring: "ring-teal-300", pill: "bg-teal-50 text-teal-700" },
+  { name: "Rose", bg: "bg-rose-600", ring: "ring-rose-300", pill: "bg-rose-50 text-rose-700" },
+  { name: "Amber", bg: "bg-amber-600", ring: "ring-amber-300", pill: "bg-amber-50 text-amber-700" },
+  { name: "Violet", bg: "bg-violet-600", ring: "ring-violet-300", pill: "bg-violet-50 text-violet-700" },
 ];
 
 // ========== Local storage fallback (legacy) ==========
@@ -43,6 +45,7 @@ const API_BASE =
   (typeof process !== "undefined" && process.env && process.env.REACT_APP_API_BASE) ||
   "";
 
+// If API_BASE is empty, app runs in local mode.
 const SERVER_ENABLED = Boolean(API_BASE);
 
 const TOKEN_KEY = "sp_token_v1";
@@ -70,7 +73,7 @@ async function api(path, { method = "GET", body, token } = {}) {
   return data;
 }
 
-// ========== Default modules/projects ==========
+// ========== Default modules (NO default tasks, NO "5 only") ==========
 const DEFAULT_MODULES = () => {
   const today = new Date();
   const d = (offset) => {
@@ -79,11 +82,11 @@ const DEFAULT_MODULES = () => {
     return fmtYMD(x);
   };
   return [
-    { id: crypto.randomUUID(), name: "BGS", colorIdx: 0, examDate: d(21), tasks: [] },
-    { id: crypto.randomUUID(), name: "Stats", colorIdx: 1, examDate: d(28), tasks: [] },
-    { id: crypto.randomUUID(), name: "WAD II", colorIdx: 2, examDate: d(35), tasks: [] },
-    { id: crypto.randomUUID(), name: "IS211", colorIdx: 3, examDate: d(42), tasks: [] },
-    { id: crypto.randomUUID(), name: "IS115", colorIdx: 4, examDate: d(49), tasks: [] },
+    { id: crypto.randomUUID(), name: "Module 1", colorIdx: 0, examDate: d(21), tasks: [] },
+    { id: crypto.randomUUID(), name: "Module 2", colorIdx: 1, examDate: d(24), tasks: [] },
+    { id: crypto.randomUUID(), name: "Module 3", colorIdx: 2, examDate: d(27), tasks: [] },
+    { id: crypto.randomUUID(), name: "Module 4", colorIdx: 3, examDate: d(30), tasks: [] },
+    { id: crypto.randomUUID(), name: "Module 5", colorIdx: 4, examDate: d(33), tasks: [] },
   ];
 };
 
@@ -102,7 +105,7 @@ function IconTrash({ className = "" }) {
 function IconReset({ className = "" }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+      <path d="M21 12a9 9 0 1 1-3-6.7" />
       <path d="M21 3v7h-7" />
     </svg>
   );
@@ -110,15 +113,25 @@ function IconReset({ className = "" }) {
 function IconUser({ className = "" }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M20 21a8 8 0 0 0-16 0" />
-      <circle cx="12" cy="8" r="4" />
+      <path d="M20 21a8 8 0 1 0-16 0" />
+      <path d="M12 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4z" />
     </svg>
   );
 }
-function IconChevronDown({ className = "" }) {
+function IconPlus({ className = "" }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M6 9l6 6 6-6" />
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </svg>
+  );
+}
+function IconLogout({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M10 17l5-5-5-5" />
+      <path d="M15 12H3" />
+      <path d="M21 4v16" />
     </svg>
   );
 }
@@ -127,36 +140,22 @@ export default function StudyPlannerApp() {
   const [user, setUser] = useState(() => localStorage.getItem(CURR_USER_KEY) || "");
   const [token, setAuthToken] = useState(() => (SERVER_ENABLED ? getToken() : ""));
   const [modules, setModules] = useState([]);
-  const [activeTab, setActiveTab] = useState("today");
+  const [activeTab, setActiveTab] = useState("overview");
   const [syncStatus, setSyncStatus] = useState(SERVER_ENABLED ? "Ready" : "Local mode");
 
-  // New: daily to-dos (global, not tied to a module) — stored alongside modules
-  const [dailyTodos, setDailyTodos] = useState([]);
-
-  // New: profile menu
+  // Header menus
   const [profileOpen, setProfileOpen] = useState(false);
-  const profileRef = useRef(null);
 
   const today = useMemo(() => fmtYMD(new Date()), []);
 
   const tabs = useMemo(
     () => [
-      { id: "today", label: "✨ Today" },
-      { id: "planner", label: "📚 Projects" },
-      { id: "overview", label: "🌷 Overview" },
+      { id: "overview", label: "Overview" },
+      { id: "today", label: "Today" },
+      { id: "planner", label: "Planner" },
     ],
     []
   );
-
-  // Close profile dropdown on outside click
-  useEffect(() => {
-    function onDocClick(e) {
-      if (!profileRef.current) return;
-      if (!profileRef.current.contains(e.target)) setProfileOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, []);
 
   // =====================
   // LOAD DATA
@@ -171,32 +170,22 @@ export default function StudyPlannerApp() {
         if (!token) return;
         try {
           setSyncStatus("Syncing…");
-          // Expect shape: { modules: [...], dailyTodos: [...] }
-          const data = await api("/data", { token });
+          const data = await api("/modules", { token });
           if (!cancelled) {
-            setModules(Array.isArray(data?.modules) ? data.modules : DEFAULT_MODULES());
-            setDailyTodos(Array.isArray(data?.dailyTodos) ? data.dailyTodos : []);
+            setModules(Array.isArray(data) ? data : DEFAULT_MODULES());
             setSyncStatus("Synced");
           }
         } catch (e) {
           if (!cancelled) {
             setSyncStatus(`Sync error: ${e.message}`);
             setModules(DEFAULT_MODULES());
-            setDailyTodos([]);
           }
         }
         return;
       }
 
       const saved = localStorage.getItem(modulesKey(user));
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setModules(Array.isArray(parsed?.modules) ? parsed.modules : DEFAULT_MODULES());
-        setDailyTodos(Array.isArray(parsed?.dailyTodos) ? parsed.dailyTodos : []);
-      } else {
-        setModules(DEFAULT_MODULES());
-        setDailyTodos([]);
-      }
+      setModules(saved ? JSON.parse(saved) : DEFAULT_MODULES());
     }
 
     load();
@@ -211,15 +200,13 @@ export default function StudyPlannerApp() {
   useEffect(() => {
     if (!user) return;
 
-    const payload = { modules, dailyTodos };
-
     if (SERVER_ENABLED) {
       if (!token) return;
 
       const doSync = async () => {
         try {
           setSyncStatus("Syncing…");
-          await api("/data", { method: "PUT", body: payload, token });
+          await api("/modules", { method: "PUT", body: modules, token });
           setSyncStatus("Synced");
         } catch (e) {
           setSyncStatus(`Sync error: ${e.message}`);
@@ -230,8 +217,8 @@ export default function StudyPlannerApp() {
       return () => clearTimeout(t);
     }
 
-    localStorage.setItem(modulesKey(user), JSON.stringify(payload));
-  }, [modules, dailyTodos, user, token]);
+    localStorage.setItem(modulesKey(user), JSON.stringify(modules));
+  }, [modules, user, token]);
 
   // =====================
   // AUTH
@@ -290,19 +277,12 @@ export default function StudyPlannerApp() {
     localStorage.removeItem(CURR_USER_KEY);
     setUser("");
     setModules([]);
-    setDailyTodos([]);
+    setProfileOpen(false);
     if (SERVER_ENABLED) {
       clearToken();
       setAuthToken("");
       setSyncStatus("Ready");
     }
-  };
-
-  const resetData = () => {
-    if (!confirm("Reset all data for this user?")) return;
-    setModules(DEFAULT_MODULES());
-    setDailyTodos([]);
-    setActiveTab("today");
   };
 
   const login = (username, password) => (SERVER_ENABLED ? loginServer(username, password) : loginLocal(username));
@@ -317,12 +297,12 @@ export default function StudyPlannerApp() {
   const addModule = () => {
     const idx = modules.length + 1;
     const dt = new Date();
-    dt.setDate(dt.getDate() + 21 + Math.min(modules.length * 3, 60));
+    dt.setDate(dt.getDate() + 21 + Math.min(modules.length * 3, 45));
     const newMod = {
       id: crypto.randomUUID(),
-      name: `Project ${idx}`,
+      name: `Module ${idx}`,
       colorIdx: modules.length % PALETTE.length,
-      examDate: fmtYMD(dt), // we keep this field; later you can rename UI label to "Deadline"
+      examDate: fmtYMD(dt),
       tasks: [],
     };
     setModules((prev) => [...prev, newMod]);
@@ -343,6 +323,16 @@ export default function StudyPlannerApp() {
       )
     );
 
+  const todayTodos = useMemo(
+    () =>
+      modules.flatMap((m) =>
+        (m.tasks || [])
+          .filter((t) => t.date === today)
+          .map((t) => ({ ...t, modId: m.id, modName: m.name, colorIdx: m.colorIdx }))
+      ),
+    [modules, today]
+  );
+
   const progressFor = (m) => {
     const total = m.tasks?.length || 0;
     if (!total) return 0;
@@ -356,23 +346,12 @@ export default function StudyPlannerApp() {
     return Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
   }, [modules]);
 
-  const todayModuleTodos = useMemo(
-    () =>
-      modules.flatMap((m) =>
-        (m.tasks || [])
-          .filter((t) => t.date === today)
-          .map((t) => ({ ...t, modId: m.id, modName: m.name, colorIdx: m.colorIdx }))
-      ),
-    [modules, today]
-  );
+  const countdownFor = (m) => daysBetween(new Date(), parseYMD(m.examDate));
 
-  // Daily todos
-  const addDailyTodo = () => {
-    const todo = { id: crypto.randomUUID(), text: "New to-do", done: false };
-    setDailyTodos((prev) => [todo, ...prev]);
+  const resetData = () => {
+    if (confirm("Reset data for this user?")) setModules(DEFAULT_MODULES());
+    setProfileOpen(false);
   };
-  const updateDailyTodo = (id, patch) => setDailyTodos((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-  const removeDailyTodo = (id) => setDailyTodos((prev) => prev.filter((t) => t.id !== id));
 
   // =====================
   // RENDER
@@ -380,83 +359,72 @@ export default function StudyPlannerApp() {
   if (!user) return <AuthScreen onLogin={login} onRegister={register} serverEnabled={SERVER_ENABLED} />;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white text-slate-900">
-      {/* Cute-ish header */}
-      <header className="sticky top-0 z-10 backdrop-blur bg-white/85 border-b">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      {/* Compact header */}
+      <header className="sticky top-0 z-20 backdrop-blur bg-white/80 border-b">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight">
-              Study Planner <span className="text-slate-400">✿</span>
-            </h1>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">📚 Study Planner</h1>
             <div className="flex flex-wrap items-center gap-2 mt-0.5">
-              <span className="text-[11px] px-2 py-1 rounded-full bg-slate-100 text-slate-600">
+              <p className="text-slate-500 text-xs sm:text-sm">
+                Signed in as <b className="break-all">{user}</b>
+              </p>
+              <span className="text-[11px] px-2 py-1 rounded-full border bg-white text-slate-600">
                 {SERVER_ENABLED ? `Sync: ${syncStatus}` : "Local mode"}
               </span>
-              <span className="text-[11px] px-2 py-1 rounded-full bg-slate-100 text-slate-600">
+              <span className="text-[11px] px-2 py-1 rounded-full border bg-white text-slate-600">
                 Overall: <b>{overallProgress}%</b>
               </span>
             </div>
           </div>
 
-          {/* Right controls: reset icon + profile dropdown */}
-          <div className="flex items-center gap-2">
+          {/* Profile icon with dropdown (Logout inside) */}
+          <div className="relative">
             <button
-              onClick={resetData}
-              className="w-10 h-10 rounded-xl border bg-white shadow-sm hover:bg-slate-50 grid place-items-center"
-              aria-label="Reset"
-              title="Reset"
+              onClick={() => setProfileOpen((v) => !v)}
+              className="w-10 h-10 rounded-full border bg-white shadow-sm grid place-items-center"
+              aria-label="Profile menu"
+              title="Profile"
             >
-              <IconReset className="w-5 h-5 text-slate-700" />
+              <IconUser className="w-5 h-5 text-slate-700" />
             </button>
 
-            <div className="relative" ref={profileRef}>
-              <button
-                onClick={() => setProfileOpen((v) => !v)}
-                className="h-10 px-3 rounded-xl border bg-white shadow-sm hover:bg-slate-50 inline-flex items-center gap-2"
-                aria-label="Profile menu"
-                title="Profile"
-              >
-                <span className="w-8 h-8 rounded-full bg-slate-100 grid place-items-center">
-                  <IconUser className="w-5 h-5 text-slate-700" />
-                </span>
-                <span className="hidden sm:inline text-sm font-medium max-w-[12rem] truncate">{user}</span>
-                <IconChevronDown className="w-4 h-4 text-slate-500" />
-              </button>
+            {profileOpen && (
+              <div className="absolute right-0 mt-2 w-44 rounded-xl border bg-white shadow-lg overflow-hidden">
+                <div className="px-3 py-2 text-xs text-slate-500 border-b">Account</div>
 
-              {profileOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-2xl border bg-white shadow-lg p-2">
-                  <div className="px-3 py-2">
-                    <div className="text-xs text-slate-500">Signed in as</div>
-                    <div className="font-semibold truncate">{user}</div>
-                  </div>
-                  <div className="h-px bg-slate-100 my-1" />
-                  <button
-                    onClick={() => {
-                      setProfileOpen(false);
-                      logout();
-                    }}
-                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 text-sm"
-                  >
-                    Logout
-                  </button>
-                </div>
-              )}
-            </div>
+                <button
+                  onClick={resetData}
+                  className="w-full px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2"
+                >
+                  <IconReset className="w-4 h-4" />
+                  Reset
+                </button>
+
+                <button
+                  onClick={logout}
+                  className="w-full px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 text-rose-600"
+                >
+                  <IconLogout className="w-4 h-4" />
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Desktop tabs */}
         <nav className="max-w-6xl mx-auto px-4 pb-3 hidden md:block">
           <div className="grid grid-cols-3 gap-2">
-            {tabs.map((tab) => (
+            {["overview", "today", "planner"].map((id) => (
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-2xl border shadow-sm ${
-                  activeTab === tab.id ? "bg-slate-900 text-white" : "bg-white hover:bg-slate-50"
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={`px-4 py-2 rounded-xl border ${
+                  activeTab === id ? "bg-slate-900 text-white" : "bg-white hover:bg-slate-100"
                 }`}
               >
-                {tab.label}
+                {id[0].toUpperCase() + id.slice(1)}
               </button>
             ))}
           </div>
@@ -464,30 +432,21 @@ export default function StudyPlannerApp() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-4 pb-32 md:pb-6">
-        {activeTab === "today" && (
-          <TodayCute
-            dailyTodos={dailyTodos}
-            addDailyTodo={addDailyTodo}
-            updateDailyTodo={updateDailyTodo}
-            removeDailyTodo={removeDailyTodo}
-            moduleTodos={todayModuleTodos}
-            setTaskStatus={setTaskStatus}
-          />
+        {activeTab === "overview" && (
+          <Overview modules={modules} progressFor={progressFor} countdownFor={countdownFor} />
         )}
-
+        {activeTab === "today" && <Today todos={todayTodos} setTaskStatus={setTaskStatus} />}
         {activeTab === "planner" && (
-          <ProjectsCute
+          <Planner
             modules={modules}
             updateModule={updateModule}
             addTask={addTask}
+            addModule={addModule}
             removeTask={removeTask}
             setTaskStatus={setTaskStatus}
-            addModule={addModule}
             progressFor={progressFor}
           />
         )}
-
-        {activeTab === "overview" && <OverviewCute modules={modules} progressFor={progressFor} />}
       </main>
 
       {/* Mobile bottom nav */}
@@ -497,8 +456,8 @@ export default function StudyPlannerApp() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-3 py-3 rounded-2xl border shadow-sm text-sm ${
-                activeTab === tab.id ? "bg-slate-900 text-white" : "bg-white hover:bg-slate-50"
+              className={`px-3 py-3 rounded-xl border text-sm ${
+                activeTab === tab.id ? "bg-slate-900 text-white" : "bg-white hover:bg-slate-100"
               }`}
             >
               {tab.label}
@@ -506,6 +465,16 @@ export default function StudyPlannerApp() {
           ))}
         </div>
       </nav>
+
+      {/* Click-away for profile dropdown */}
+      {profileOpen && (
+        <button
+          className="fixed inset-0 z-10 cursor-default"
+          onClick={() => setProfileOpen(false)}
+          aria-label="Close profile menu"
+          tabIndex={-1}
+        />
+      )}
     </div>
   );
 }
@@ -515,14 +484,14 @@ function AuthScreen({ onLogin, onRegister, serverEnabled }) {
   const [pw, setPw] = useState("");
 
   return (
-    <div className="min-h-screen grid place-items-center bg-gradient-to-b from-slate-50 to-white px-4">
-      <div className="w-full max-w-md rounded-3xl border bg-white p-6 shadow-lg">
-        <h2 className="text-xl font-bold">Welcome ✨</h2>
+    <div className="min-h-screen grid place-items-center bg-slate-50 px-4">
+      <div className="w-full max-w-md rounded-2xl border bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold">Welcome to Study Planner</h2>
 
         {!serverEnabled ? (
-          <p className="text-slate-600 mt-1 text-sm">Local mode. Create a username to start.</p>
+          <p className="text-slate-600 mt-1 text-sm">Local mode (no server configured). Create a username to get started.</p>
         ) : (
-          <p className="text-slate-600 mt-1 text-sm">Server mode enabled. Sign in to sync across devices.</p>
+          <p className="text-slate-600 mt-1 text-sm">Server mode enabled. Sign in to access your account across devices.</p>
         )}
 
         <div className="mt-4 space-y-2">
@@ -530,7 +499,7 @@ function AuthScreen({ onLogin, onRegister, serverEnabled }) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Username"
-            className="w-full px-3 py-2 rounded-2xl border"
+            className="w-full px-3 py-2 rounded-xl border"
           />
           {serverEnabled && (
             <input
@@ -538,54 +507,56 @@ function AuthScreen({ onLogin, onRegister, serverEnabled }) {
               onChange={(e) => setPw(e.target.value)}
               placeholder="Password"
               type="password"
-              className="w-full px-3 py-2 rounded-2xl border"
+              className="w-full px-3 py-2 rounded-xl border"
             />
           )}
         </div>
 
         <div className="mt-4 flex gap-2">
-          <button onClick={() => onRegister(name, pw)} className="flex-1 px-4 py-2 rounded-2xl bg-slate-900 text-white">
+          <button onClick={() => onRegister(name, pw)} className="flex-1 px-4 py-2 rounded-xl bg-slate-900 text-white">
             Register
           </button>
-          <button onClick={() => onLogin(name, pw)} className="flex-1 px-4 py-2 rounded-2xl border">
+          <button onClick={() => onLogin(name, pw)} className="flex-1 px-4 py-2 rounded-xl border">
             Login
           </button>
         </div>
 
         <p className="text-xs text-slate-500 mt-3">
-          {serverEnabled ? "Your data syncs to your server account." : "Data stays on this device (localStorage)."}
+          {serverEnabled ? "Your tasks sync to your server account." : "No password. Data stays on this device (localStorage)."}
         </p>
       </div>
     </div>
   );
 }
 
-function OverviewCute({ modules, progressFor }) {
+function Overview({ modules, progressFor, countdownFor }) {
   return (
-    <section className="grid md:grid-cols-2 gap-4">
+    <section className="grid md:grid-cols-2 gap-4 sm:gap-6">
       {modules.map((m) => {
-        const c = PALETTE[m.colorIdx % PALETTE.length];
+        const colors = PALETTE[m.colorIdx % PALETTE.length];
         return (
-          <div key={m.id} className="rounded-3xl border bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
+          <div key={m.id} className="rounded-2xl border bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${c.soft} ${c.text}`}>
-                  <span className={`inline-block w-2 h-2 rounded-full ${c.dot}`}></span>
-                  <span className="truncate font-semibold">{m.name}</span>
+                <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm ${colors.pill}`}>
+                  <span className={`inline-block w-2 h-2 rounded-full ${colors.bg}`}></span>
+                  <span className="truncate">{m.name}</span>
                 </div>
-                <div className="mt-2 text-sm text-slate-500">
-                  Deadline: <span className="font-medium text-slate-800">{m.examDate}</span>
-                </div>
+                <h3 className="mt-3 text-lg font-semibold">
+                  Exam: <span className="font-normal">{m.examDate}</span>
+                </h3>
               </div>
-
-              <div className="text-right">
-                <div className="text-2xl font-extrabold">{progressFor(m)}%</div>
-                <div className="text-xs text-slate-500">done</div>
-              </div>
+              <div className={`shrink-0 px-3 py-1 rounded-lg text-white ${colors.bg}`}>{countdownFor(m)} days</div>
             </div>
 
-            <div className="mt-4 h-2.5 rounded-full bg-slate-100 overflow-hidden">
-              <div className={`h-full ${c.dot}`} style={{ width: `${progressFor(m)}%` }} />
+            <div className="mt-5">
+              <div className="flex items-center justify-between text-sm mb-1">
+                <span>Progress</span>
+                <span>{progressFor(m)}%</span>
+              </div>
+              <div className="h-2 rounded-full bg-slate-100 overflow-hidden ring-1 ring-slate-200">
+                <div className={`h-full ${colors.bg}`} style={{ width: `${progressFor(m)}%` }}></div>
+              </div>
             </div>
           </div>
         );
@@ -594,89 +565,47 @@ function OverviewCute({ modules, progressFor }) {
   );
 }
 
-function TodayCute({ dailyTodos, addDailyTodo, updateDailyTodo, removeDailyTodo, moduleTodos, setTaskStatus }) {
+function Today({ todos, setTaskStatus }) {
+  if (!todos.length) return <p className="text-slate-600">🎉 No tasks for today.</p>;
   return (
-    <section className="space-y-5">
-      {/* Daily To-dos */}
-      <div className="rounded-3xl border bg-white shadow-sm overflow-hidden">
-        <div className="px-4 py-3 flex items-center justify-between">
-          <h3 className="font-bold">🌼 Daily To-Dos</h3>
-          <button onClick={addDailyTodo} className="px-3 py-2 rounded-2xl bg-slate-900 text-white text-sm">
-            + Add
-          </button>
+    <section className="space-y-3">
+      {todos.map((t) => (
+        <div
+          key={t.id}
+          className="rounded-2xl border bg-white p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+        >
+          <div className="min-w-0">
+            <div className="text-sm text-slate-500">{t.modName}</div>
+            <div className="font-medium truncate">{t.topic}</div>
+          </div>
+          <select
+            value={t.status}
+            onChange={(e) => setTaskStatus(t.modId, t.id, e.target.value)}
+            className="px-3 py-2 rounded-xl border bg-white w-full sm:w-auto"
+          >
+            {["Not Started", "In Progress", "Done"].map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
         </div>
-
-        <div className="px-4 pb-4 space-y-2">
-          {dailyTodos.length === 0 ? (
-            <p className="text-sm text-slate-500">Add quick daily things here (water, laundry, admin, errands).</p>
-          ) : (
-            dailyTodos.map((t) => (
-              <div key={t.id} className="flex items-center gap-2 rounded-2xl border bg-white p-2.5">
-                <input
-                  type="checkbox"
-                  checked={t.done}
-                  onChange={(e) => updateDailyTodo(t.id, { done: e.target.checked })}
-                  className="w-5 h-5"
-                />
-                <input
-                  value={t.text}
-                  onChange={(e) => updateDailyTodo(t.id, { text: e.target.value })}
-                  className="flex-1 px-2 py-1 rounded-xl border bg-slate-50 text-sm"
-                />
-                <button
-                  onClick={() => removeDailyTodo(t.id)}
-                  className="w-10 h-10 grid place-items-center rounded-2xl border hover:bg-slate-50"
-                  aria-label="Delete"
-                  title="Delete"
-                >
-                  <IconTrash className="w-5 h-5 text-slate-700" />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* Today's project tasks */}
-      <div className="rounded-3xl border bg-white shadow-sm overflow-hidden">
-        <div className="px-4 py-3">
-          <h3 className="font-bold">✨ Due Today (Projects)</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Tasks with today’s date inside your projects.</p>
-        </div>
-
-        <div className="px-4 pb-4 space-y-2">
-          {moduleTodos.length === 0 ? (
-            <p className="text-sm text-slate-500">No project tasks due today. Cute. Peaceful. 🌿</p>
-          ) : (
-            moduleTodos.map((t) => (
-              <div key={t.id} className="rounded-2xl border p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-xs text-slate-500">{t.modName}</div>
-                  <div className="font-semibold truncate">{t.topic}</div>
-                </div>
-                <select
-                  value={t.status}
-                  onChange={(e) => setTaskStatus(t.modId, t.id, e.target.value)}
-                  className="px-3 py-2 rounded-2xl border bg-white text-sm w-full sm:w-auto"
-                >
-                  {["Not Started", "In Progress", "Done"].map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+      ))}
     </section>
   );
 }
 
-function ProjectsCute({ modules, updateModule, addTask, removeTask, setTaskStatus, addModule, progressFor }) {
+/**
+ * Planner:
+ * ✅ Mobile single + button (action picker)
+ * ✅ Unlimited modules
+ * ✅ Exam date on same header line
+ * ✅ Delete icon buttons
+ */
+function Planner({ modules, updateModule, addTask, addModule, removeTask, setTaskStatus, progressFor }) {
   const [openMap, setOpenMap] = useState({});
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerMode, setPickerMode] = useState("task"); // "task" | "module"
 
   useEffect(() => {
     if (!modules?.length) return;
@@ -689,76 +618,76 @@ function ProjectsCute({ modules, updateModule, addTask, removeTask, setTaskStatu
 
   const isOpen = (id) => !!openMap[id];
   const toggle = (id) => setOpenMap((prev) => ({ ...prev, [id]: !prev[id] }));
-  const openIds = useMemo(() => Object.entries(openMap).filter(([, v]) => v).map(([k]) => k), [openMap]);
 
-  const addTaskSmart = () => {
-    if (openIds.length === 1) {
-      addTask(openIds[0]);
-      return;
-    }
-    setSheetOpen(true);
+  const openActionPicker = () => {
+    setPickerMode("task");
+    setPickerOpen(true);
   };
 
   return (
-    <section className="space-y-4">
-      <div className="flex justify-end">
-        <button onClick={addModule} className="px-3 py-2 rounded-2xl border bg-white shadow-sm hover:bg-slate-50 text-sm">
-          + New Project
+    <section className="space-y-6 relative">
+      {/* Desktop: add module button */}
+      <div className="hidden md:flex justify-end">
+        <button onClick={addModule} className="px-3 py-2 rounded-lg border text-sm bg-white hover:bg-slate-50">
+          + Module
         </button>
       </div>
 
       {modules.map((m) => {
-        const c = PALETTE[m.colorIdx % PALETTE.length];
+        const colors = PALETTE[m.colorIdx % PALETTE.length];
         const sortedTasks = (m.tasks || []).slice().sort((a, b) => a.date.localeCompare(b.date));
 
         return (
-          <div key={m.id} className="rounded-3xl border bg-white shadow-sm overflow-hidden">
-            {/* Header: name + deadline + progress on same line */}
-            <div className={`${c.bg} text-white px-4 py-3`}>
+          <div key={m.id} className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+            {/* Header row: name + exam + progress all together */}
+            <div className={`${colors.bg} text-white px-4 py-3`}>
               <div className="flex flex-wrap items-center gap-2">
-                <span className={`w-2.5 h-2.5 rounded-full ${c.dot}`} />
-
                 <input
                   value={m.name}
                   onChange={(e) => updateModule(m.id, { name: e.target.value })}
-                  className="min-w-[8rem] flex-1 px-3 py-2 rounded-2xl text-slate-900 text-sm bg-white/95"
+                  className="min-w-[10rem] flex-1 px-3 py-2 rounded-lg text-slate-900 text-sm"
                 />
 
                 <input
                   type="date"
                   value={m.examDate}
                   onChange={(e) => updateModule(m.id, { examDate: e.target.value })}
-                  className="px-3 py-2 rounded-2xl text-slate-900 text-sm bg-white/95"
-                  aria-label="Deadline"
+                  className="px-3 py-2 rounded-lg text-slate-900 text-sm bg-white"
+                  aria-label="Exam date"
                 />
 
-                <span className="px-2 py-1 rounded-2xl bg-white/20 text-xs font-bold">{progressFor(m)}%</span>
+                <span className="px-2 py-1 rounded-lg bg-white/15 text-xs font-semibold">{progressFor(m)}%</span>
 
+                {/* Desktop: add task button */}
                 <button
                   onClick={() => addTask(m.id)}
-                  className="hidden md:inline-flex ml-auto px-3 py-2 rounded-2xl bg-white/20 hover:bg-white/30 text-sm font-medium"
+                  className="hidden md:inline-flex ml-auto px-3 py-2 rounded-lg bg-white/15 ring-1 ring-white/25 text-sm"
                 >
                   + Task
                 </button>
 
+                {/* Mobile: collapse toggle */}
                 <button
                   onClick={() => toggle(m.id)}
-                  className="md:hidden ml-auto px-3 py-2 rounded-2xl bg-white/20 hover:bg-white/30 text-sm"
+                  className="md:hidden ml-auto px-2 py-2 rounded-lg bg-white/15 ring-1 ring-white/20"
+                  aria-label={isOpen(m.id) ? "Collapse module" : "Expand module"}
+                  title={isOpen(m.id) ? "Collapse" : "Expand"}
                 >
-                  {isOpen(m.id) ? "Hide" : "Show"}
+                  {isOpen(m.id) ? "▾" : "▸"}
                 </button>
               </div>
             </div>
 
+            {/* Body */}
             <div className={`${isOpen(m.id) ? "block" : "hidden"} md:block p-4`}>
               {!sortedTasks.length ? (
-                <p className="text-sm text-slate-500">No tasks yet. Tap + to add one ✨</p>
+                <p className="text-slate-600">No tasks yet. Tap + to add.</p>
               ) : (
                 <>
-                  {/* Mobile: cards */}
+                  {/* MOBILE: task cards */}
                   <div className="space-y-3 md:hidden">
                     {sortedTasks.map((t) => (
-                      <div key={t.id} className="rounded-3xl border bg-white p-3 shadow-sm">
+                      <div key={t.id} className="rounded-xl border bg-white p-3 shadow-sm">
                         <div className="flex items-center gap-2">
                           <input
                             type="date"
@@ -768,21 +697,21 @@ function ProjectsCute({ modules, updateModule, addTask, removeTask, setTaskStatu
                                 tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, date: e.target.value } : x)),
                               })
                             }
-                            className="flex-1 px-3 py-2 rounded-2xl border text-sm bg-slate-50"
+                            className="flex-1 px-3 py-2 rounded-lg border text-sm bg-slate-50"
                           />
 
                           <button
                             onClick={() => removeTask(m.id, t.id)}
-                            className="w-11 h-11 grid place-items-center rounded-2xl border hover:bg-slate-50"
+                            className="w-11 h-11 grid place-items-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600"
                             aria-label="Delete task"
                             title="Delete"
                           >
-                            <IconTrash className="w-5 h-5 text-slate-700" />
+                            <IconTrash className="w-5 h-5" />
                           </button>
                         </div>
 
                         <div className="mt-2">
-                          <label className="text-xs text-slate-500">Task</label>
+                          <label className="text-xs text-slate-500">Topic</label>
                           <input
                             value={t.topic}
                             onChange={(e) =>
@@ -790,7 +719,7 @@ function ProjectsCute({ modules, updateModule, addTask, removeTask, setTaskStatu
                                 tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, topic: e.target.value } : x)),
                               })
                             }
-                            className="w-full mt-1 px-3 py-2 rounded-2xl border text-sm"
+                            className="w-full mt-1 px-3 py-2 rounded-lg border text-sm"
                           />
                         </div>
 
@@ -799,7 +728,7 @@ function ProjectsCute({ modules, updateModule, addTask, removeTask, setTaskStatu
                           <select
                             value={t.status}
                             onChange={(e) => setTaskStatus(m.id, t.id, e.target.value)}
-                            className="flex-1 px-3 py-2 rounded-2xl border text-sm bg-white"
+                            className="flex-1 px-3 py-2 rounded-lg border text-sm bg-white"
                           >
                             {["Not Started", "In Progress", "Done"].map((s) => (
                               <option key={s} value={s}>
@@ -812,13 +741,13 @@ function ProjectsCute({ modules, updateModule, addTask, removeTask, setTaskStatu
                     ))}
                   </div>
 
-                  {/* Desktop: table */}
+                  {/* DESKTOP: table */}
                   <div className="hidden md:block overflow-x-auto">
                     <table className="min-w-full text-sm">
                       <thead>
                         <tr className="text-left text-slate-600">
                           <th className="py-2 pr-4">Date</th>
-                          <th className="py-2 pr-4">Task</th>
+                          <th className="py-2 pr-4">Topic</th>
                           <th className="py-2 pr-4">Status</th>
                           <th className="py-2 pr-4">Actions</th>
                         </tr>
@@ -835,7 +764,7 @@ function ProjectsCute({ modules, updateModule, addTask, removeTask, setTaskStatu
                                     tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, date: e.target.value } : x)),
                                   })
                                 }
-                                className="px-2 py-1 rounded-xl border"
+                                className="px-2 py-1 rounded-lg border"
                               />
                             </td>
                             <td className="py-2 pr-4 w-full">
@@ -846,14 +775,14 @@ function ProjectsCute({ modules, updateModule, addTask, removeTask, setTaskStatu
                                     tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, topic: e.target.value } : x)),
                                   })
                                 }
-                                className="w-full px-3 py-1 rounded-xl border"
+                                className="w-full px-3 py-1 rounded-lg border"
                               />
                             </td>
                             <td className="py-2 pr-4">
                               <select
                                 value={t.status}
                                 onChange={(e) => setTaskStatus(m.id, t.id, e.target.value)}
-                                className="px-3 py-1 rounded-xl border"
+                                className="px-3 py-1 rounded-lg border"
                               >
                                 {["Not Started", "In Progress", "Done"].map((s) => (
                                   <option key={s} value={s}>
@@ -865,7 +794,7 @@ function ProjectsCute({ modules, updateModule, addTask, removeTask, setTaskStatu
                             <td className="py-2 pr-4">
                               <button
                                 onClick={() => removeTask(m.id, t.id)}
-                                className="px-2 py-2 rounded-xl border hover:bg-slate-50 inline-flex items-center justify-center"
+                                className="px-2 py-2 rounded-lg border hover:bg-slate-50 inline-flex items-center justify-center"
                                 aria-label="Delete task"
                                 title="Delete"
                               >
@@ -884,61 +813,86 @@ function ProjectsCute({ modules, updateModule, addTask, removeTask, setTaskStatu
         );
       })}
 
-      {/* Floating buttons (mobile): add project + add task */}
-      <div className="md:hidden fixed right-5 bottom-20 z-40 flex flex-col gap-3">
-        <button
-          onClick={addModule}
-          className="w-14 h-14 rounded-full bg-white border shadow-lg text-xl grid place-items-center"
-          aria-label="Add project"
-          title="Add project"
-        >
-          🌸
-        </button>
+      {/* MOBILE: single + button -> action picker */}
+      <button
+        onClick={() => {
+          setPickerMode("task");
+          setPickerOpen(true);
+        }}
+        className="md:hidden fixed right-5 bottom-20 z-40 w-14 h-14 rounded-full bg-slate-900 text-white shadow-lg grid place-items-center"
+        aria-label="Add"
+        title="Add"
+      >
+        <IconPlus className="w-6 h-6" />
+      </button>
 
-        <button
-          onClick={addTaskSmart}
-          className="w-14 h-14 rounded-full bg-slate-900 text-white shadow-lg text-2xl grid place-items-center"
-          aria-label="Add task"
-          title="Add task"
-        >
-          +
-        </button>
-      </div>
-
-      {/* Module picker bottom sheet */}
-      {sheetOpen && (
+      {/* Action picker (mobile) */}
+      {pickerOpen && (
         <div className="md:hidden fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setSheetOpen(false)} />
-          <div className="absolute inset-x-0 bottom-0 bg-white rounded-t-3xl border-t shadow-xl p-4">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setPickerOpen(false)} />
+          <div className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl border-t shadow-xl p-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold">Add task to…</h3>
-              <button onClick={() => setSheetOpen(false)} className="px-3 py-2 rounded-2xl border text-sm">
+              <h3 className="font-semibold">Create…</h3>
+              <button onClick={() => setPickerOpen(false)} className="px-3 py-2 rounded-lg border text-sm">
                 Close
               </button>
             </div>
 
             <div className="mt-3 grid gap-2">
-              {modules.map((m) => {
-                const c = PALETTE[m.colorIdx % PALETTE.length];
-                return (
-                  <button
-                    key={m.id}
-                    onClick={() => {
-                      addTask(m.id);
-                      setOpenMap((prev) => ({ ...prev, [m.id]: true }));
-                      setSheetOpen(false);
-                    }}
-                    className="w-full flex items-center justify-between rounded-3xl border px-3 py-3 text-left"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className={`w-2.5 h-2.5 rounded-full ${c.dot}`} />
-                      <span className="truncate font-semibold">{m.name}</span>
-                    </div>
-                    <span className="text-xs text-slate-500">{m.examDate}</span>
-                  </button>
-                );
-              })}
+              <button
+                onClick={() => {
+                  // Choose module to add task to
+                  setPickerMode("task");
+                }}
+                className={`w-full rounded-xl border px-3 py-3 text-left ${pickerMode === "task" ? "bg-slate-50" : ""}`}
+              >
+                <div className="font-medium">New task</div>
+                <div className="text-xs text-slate-500 mt-0.5">Add a task to a module</div>
+              </button>
+
+              <button
+                onClick={() => {
+                  addModule();
+                  setPickerOpen(false);
+                }}
+                className="w-full rounded-xl border px-3 py-3 text-left"
+              >
+                <div className="font-medium">New module</div>
+                <div className="text-xs text-slate-500 mt-0.5">Create a new module (unlimited)</div>
+              </button>
             </div>
+
+            {/* If mode is task, show module list */}
+            <div className="mt-4">
+              <div className="text-xs text-slate-500 mb-2">Pick a module for the new task</div>
+              <div className="grid gap-2 max-h-64 overflow-auto pr-1">
+                {modules.map((m) => {
+                  const colors = PALETTE[m.colorIdx % PALETTE.length];
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => {
+                        addTask(m.id);
+                        // auto-open that module so user sees the new task
+                        setOpenMap((prev) => ({ ...prev, [m.id]: true }));
+                        setPickerOpen(false);
+                      }}
+                      className="w-full flex items-center justify-between rounded-xl border px-3 py-3 text-left"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`w-2.5 h-2.5 rounded-full ${colors.bg}`} />
+                        <span className="truncate font-medium">{m.name}</span>
+                      </div>
+                      <span className="text-xs text-slate-500">{m.examDate}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <p className="mt-3 text-xs text-slate-500">
+              Tip: Task creation asks where to put it. Module creation happens instantly.
+            </p>
           </div>
         </div>
       )}
