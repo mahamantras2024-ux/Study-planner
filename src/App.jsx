@@ -1,27 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-/**
- * Fix included ✅
- * - Removed invalid hook usage (no hooks inside JSX)
- * - Everything else kept the same as the previous update
- */
-
 // === Helper utils ===
 const pad = (n) => String(n).padStart(2, "0");
 const fmtYMD = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const parseYMD = (s) => {
-  const [y, m, dd] = s.split("-").map(Number);
-  return new Date(y, m - 1, dd);
-};
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
-// Fixed palette per item (accent used for header)
+// Fixed palette per item (accent used for header only)
 const PALETTE = [
-  { bg: "bg-indigo-600", pill: "bg-indigo-50 text-indigo-700" },
-  { bg: "bg-teal-600", pill: "bg-teal-50 text-teal-700" },
-  { bg: "bg-rose-600", pill: "bg-rose-50 text-rose-700" },
-  { bg: "bg-amber-600", pill: "bg-amber-50 text-amber-700" },
-  { bg: "bg-violet-600", pill: "bg-violet-50 text-violet-700" },
+  { bg: "bg-indigo-600" },
+  { bg: "bg-teal-600" },
+  { bg: "bg-rose-600" },
+  { bg: "bg-amber-600" },
+  { bg: "bg-violet-600" },
 ];
 
 // ===== Status system =====
@@ -34,7 +24,6 @@ function statusMeta(status) {
         label: "Not Started",
         pill: "bg-rose-50 text-rose-700 ring-rose-200",
         iconColor: "text-rose-600",
-        dot: "bg-rose-500",
         select: "border-rose-200 bg-rose-50 text-rose-800",
       };
     case "In Progress":
@@ -42,7 +31,6 @@ function statusMeta(status) {
         label: "In Progress",
         pill: "bg-amber-50 text-amber-800 ring-amber-200",
         iconColor: "text-amber-600",
-        dot: "bg-amber-500",
         select: "border-amber-200 bg-amber-50 text-amber-900",
       };
     case "Done":
@@ -50,7 +38,6 @@ function statusMeta(status) {
         label: "Done",
         pill: "bg-emerald-50 text-emerald-700 ring-emerald-200",
         iconColor: "text-emerald-600",
-        dot: "bg-emerald-500",
         select: "border-emerald-200 bg-emerald-50 text-emerald-900",
       };
     default:
@@ -58,7 +45,6 @@ function statusMeta(status) {
         label: status,
         pill: "bg-slate-50 text-slate-700 ring-slate-200",
         iconColor: "text-slate-600",
-        dot: "bg-slate-400",
         select: "border-slate-200 bg-slate-50 text-slate-900",
       };
   }
@@ -72,26 +58,17 @@ function typeMeta(type) {
   if (type === "exam")
     return {
       label: "Exams",
-      chip: "bg-sky-50 text-sky-800 ring-sky-200",
-      tint: "bg-sky-50/70",
-      border: "border-sky-200",
       banner: "bg-gradient-to-r from-sky-50 to-white border-sky-200 text-sky-900",
       emoji: "📝",
     };
   if (type === "project")
     return {
       label: "Projects",
-      chip: "bg-purple-50 text-purple-800 ring-purple-200",
-      tint: "bg-purple-50/70",
-      border: "border-purple-200",
       banner: "bg-gradient-to-r from-purple-50 to-white border-purple-200 text-purple-900",
       emoji: "🧩",
     };
   return {
     label: "Daily",
-    chip: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-    tint: "bg-emerald-50/70",
-    border: "border-emerald-200",
     banner: "bg-gradient-to-r from-emerald-50 to-white border-emerald-200 text-emerald-900",
     emoji: "✅",
   };
@@ -159,38 +136,10 @@ const DEFAULT_ITEMS = () => {
   };
 
   return [
-    {
-      id: crypto.randomUUID(),
-      type: "exam",
-      name: "BGS",
-      colorIdx: 0,
-      dueDate: d(21),
-      tasks: [],
-    },
-    {
-      id: crypto.randomUUID(),
-      type: "exam",
-      name: "Econs",
-      colorIdx: 1,
-      dueDate: d(28),
-      tasks: [],
-    },
-    {
-      id: crypto.randomUUID(),
-      type: "project",
-      name: "Omni Iteration",
-      colorIdx: 2,
-      dueDate: d(14),
-      tasks: [],
-    },
-    {
-      id: crypto.randomUUID(),
-      type: "daily",
-      name: "Daily To-Dos",
-      colorIdx: 3,
-      dueDate: d(0),
-      tasks: [],
-    },
+    { id: crypto.randomUUID(), type: "exam", name: "BGS", colorIdx: 0, dueDate: d(21), tasks: [] },
+    { id: crypto.randomUUID(), type: "exam", name: "Econs", colorIdx: 1, dueDate: d(28), tasks: [] },
+    { id: crypto.randomUUID(), type: "project", name: "Omni Iteration", colorIdx: 2, dueDate: d(14), tasks: [] },
+    { id: crypto.randomUUID(), type: "daily", name: "Daily To-Dos", colorIdx: 3, dueDate: d(0), tasks: [] },
   ];
 };
 
@@ -274,9 +223,11 @@ function IconPause({ className = "" }) {
 
 // Status icons
 function IconStatusNotStarted({ className = "" }) {
+  // changed from hollow circle -> "minus in circle" style
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="8" />
+      <path d="M8.5 12h7" />
     </svg>
   );
 }
@@ -341,7 +292,7 @@ export default function StudyPlannerApp() {
   const [user, setUser] = useState(() => localStorage.getItem(CURR_USER_KEY) || "");
   const [token, setAuthToken] = useState(() => (SERVER_ENABLED ? getToken() : ""));
   const [items, setItems] = useState([]);
-  const [activeTab, setActiveTab] = useState("planner");
+  const [activeTab, setActiveTab] = useState("today"); // ✅ Today first
   const [syncStatus, setSyncStatus] = useState(SERVER_ENABLED ? "Ready" : "Local mode");
 
   const [profileOpen, setProfileOpen] = useState(false);
@@ -353,16 +304,17 @@ export default function StudyPlannerApp() {
   const tickRef = useRef(null);
 
   const today = useMemo(() => fmtYMD(new Date()), []);
+
+  // ✅ Order: Today → Planner → Timer
   const tabs = useMemo(
     () => [
-      { id: "planner", label: "Planner" },
       { id: "today", label: "Today" },
+      { id: "planner", label: "Planner" },
       { id: "timer", label: "Timer" },
     ],
     []
   );
 
-  // ✅ FIX: derived todos computed via useMemo at top-level (no hooks inside JSX)
   const todayTodos = useMemo(() => {
     return items.flatMap((m) =>
       (m.tasks || [])
@@ -709,6 +661,14 @@ export default function StudyPlannerApp() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-4 pb-32 md:pb-6">
+        {activeTab === "today" && (
+          <Today
+            todos={todayTodos}
+            setTaskStatus={setTaskStatus}
+            cycleTaskStatus={cycleTaskStatus}
+          />
+        )}
+
         {activeTab === "planner" && (
           <>
             <div className={`mb-4 rounded-2xl border p-4 flex items-center justify-between gap-3 ${currentCatMeta.banner}`}>
@@ -749,12 +709,9 @@ export default function StudyPlannerApp() {
               cycleTaskStatus={cycleTaskStatus}
               progressFor={progressFor}
               category={category}
-              today={today}
             />
           </>
         )}
-
-        {activeTab === "today" && <Today todos={todayTodos} setTaskStatus={setTaskStatus} />}
 
         {activeTab === "timer" && (
           <PomodoroClock
@@ -855,36 +812,51 @@ function AuthScreen({ onLogin, onRegister, serverEnabled }) {
 }
 
 // ===================== TODAY =====================
-function Today({ todos, setTaskStatus }) {
+function Today({ todos, setTaskStatus, cycleTaskStatus }) {
   if (!todos.length) return <p className="text-slate-600">🎉 No tasks for today.</p>;
 
   return (
     <section className="space-y-3">
       {todos.map((t) => {
         const meta = statusMeta(t.status);
-        const tm = typeMeta(t.type);
+
         return (
           <div key={t.id} className="rounded-2xl border bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full ring-1 ${tm.chip}`}>{tm.label}</span>
-                  <span className="text-sm text-slate-500 truncate">{t.name}</span>
-                </div>
+                <div className="text-sm text-slate-500 truncate">{t.name}</div>
                 <div className="font-medium truncate mt-1">{t.topic}</div>
               </div>
 
-              <select
-                value={t.status}
-                onChange={(e) => setTaskStatus(t.itemId, t.id, e.target.value)}
-                className={`px-3 py-2 rounded-xl border text-sm ${meta.select}`}
+              {/* Desktop: icon + text + dropdown */}
+              <div className="hidden sm:flex items-center gap-2">
+                <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl ring-1 ${meta.pill}`}>
+                  <StatusIcon status={t.status} className={`w-4 h-4 ${meta.iconColor}`} />
+                  <span className="text-sm">{meta.label}</span>
+                </span>
+
+                <select
+                  value={t.status}
+                  onChange={(e) => setTaskStatus(t.itemId, t.id, e.target.value)}
+                  className={`px-3 py-2 rounded-xl border text-sm ${meta.select}`}
+                >
+                  {STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Mobile: icon-only status button (tap cycles) */}
+              <button
+                className={`sm:hidden w-11 h-11 shrink-0 grid place-items-center rounded-xl ring-1 ${meta.pill}`}
+                title={`Status: ${meta.label}`}
+                onClick={() => cycleTaskStatus(t.itemId, t.id)}
+                aria-label={`Set status (currently ${meta.label})`}
               >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+                <StatusIcon status={t.status} className={`w-5 h-5 ${meta.iconColor}`} />
+              </button>
             </div>
           </div>
         );
@@ -904,7 +876,6 @@ function Planner({
   cycleTaskStatus,
   progressFor,
   category,
-  today,
 }) {
   const [openMap, setOpenMap] = useState({});
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -921,7 +892,6 @@ function Planner({
     <section className="space-y-4 relative">
       {items.map((m) => {
         const colors = PALETTE[m.colorIdx % PALETTE.length];
-        const tm = typeMeta(m.type);
         const sortedTasks = (m.tasks || []).slice().sort((a, b) => a.date.localeCompare(b.date));
 
         return (
@@ -964,17 +934,13 @@ function Planner({
                 </div>
               </div>
 
-              <div className={`${isOpen(m.id) ? "block" : "hidden"} md:block p-4 ${tm.tint}`}>
-                <div className="mb-3 flex items-center gap-2">
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full ring-1 ${tm.chip}`}>
-                    {tm.emoji} {tm.label}
-                  </span>
-                </div>
-
+              {/* ✅ Cleaner interior background */}
+              <div className={`${isOpen(m.id) ? "block" : "hidden"} md:block p-4 bg-white`}>
                 {!sortedTasks.length ? (
                   <p className="text-slate-600">No tasks yet. Tap + to add.</p>
                 ) : (
                   <>
+                    {/* Mobile list */}
                     <div className="md:hidden space-y-2">
                       {sortedTasks.map((t) => {
                         const meta = statusMeta(t.status);
@@ -988,7 +954,7 @@ function Planner({
                                   tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, date: e.target.value } : x)),
                                 })
                               }
-                              className="w-[9.5rem] shrink-0 px-3 py-2 rounded-lg border text-sm bg-white/70"
+                              className="w-[9.5rem] shrink-0 px-3 py-2 rounded-lg border text-sm bg-white"
                             />
 
                             <input
@@ -1009,6 +975,7 @@ function Planner({
                               <StatusIcon status={t.status} className={`w-5 h-5 ${meta.iconColor}`} />
                             </button>
 
+                            {/* ✅ Delete icon red */}
                             <button
                               onClick={() => removeTask(m.id, t.id)}
                               className="w-11 h-11 shrink-0 grid place-items-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600"
@@ -1021,6 +988,7 @@ function Planner({
                       })}
                     </div>
 
+                    {/* Desktop table */}
                     <div className="hidden md:block overflow-x-auto">
                       <table className="min-w-full text-sm">
                         <thead>
@@ -1061,9 +1029,9 @@ function Planner({
                                   />
                                 </td>
 
+                                {/* ✅ Removed dot */}
                                 <td className="py-2 pr-4">
                                   <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border ${meta.select}`}>
-                                    <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
                                     <StatusIcon status={t.status} className={`w-4 h-4 ${meta.iconColor}`} />
                                     <select
                                       value={t.status}
@@ -1080,7 +1048,12 @@ function Planner({
                                 </td>
 
                                 <td className="py-2 pr-4">
-                                  <button onClick={() => removeTask(m.id, t.id)} className="px-2 py-2 rounded-lg border bg-white hover:bg-slate-50">
+                                  {/* ✅ Delete icon red */}
+                                  <button
+                                    onClick={() => removeTask(m.id, t.id)}
+                                    className="px-2 py-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                                    title="Delete"
+                                  >
                                     <IconTrash className="w-4 h-4" />
                                   </button>
                                 </td>
@@ -1141,10 +1114,9 @@ function AddPickerSheet({ items, currentType, onClose, onAddTask, onAddItem }) {
             className="w-full rounded-xl border px-3 py-3 text-left"
           >
             <div className="flex items-center gap-2">
-              <span className={`text-[11px] px-2 py-0.5 rounded-full ring-1 ${tm.chip}`}>
-                {tm.emoji} {tm.label}
-              </span>
-              <div className="font-medium text-sm">New {currentType === "daily" ? "list" : "item"}</div>
+              <div className="font-medium text-sm">
+                New {tm.label} item
+              </div>
             </div>
             <div className="text-xs text-slate-500 mt-0.5">Creates a new card in this category</div>
           </button>
@@ -1155,7 +1127,6 @@ function AddPickerSheet({ items, currentType, onClose, onAddTask, onAddItem }) {
           <div className="grid gap-2 max-h-64 overflow-auto pr-1">
             {items.map((m) => {
               const colors = PALETTE[m.colorIdx % PALETTE.length];
-              const cat = typeMeta(m.type);
               return (
                 <button
                   key={m.id}
@@ -1168,9 +1139,6 @@ function AddPickerSheet({ items, currentType, onClose, onAddTask, onAddItem }) {
                   <div className="flex items-center gap-2 min-w-0">
                     <span className={`w-2.5 h-2.5 rounded-full ${colors.bg}`} />
                     <span className="truncate font-medium">{m.name}</span>
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full ring-1 ${cat.chip}`}>
-                      {cat.emoji} {cat.label}
-                    </span>
                   </div>
                   <span className="text-xs text-slate-500">{m.type === "daily" ? "—" : m.dueDate}</span>
                 </button>
