@@ -54,9 +54,7 @@ const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
 const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
 async function api(path, { method = "GET", body, token } = {}) {
-  const headers = {
-    "Content-Type": "application/json",
-  };
+  const headers = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(`${API_BASE}${path}`, {
@@ -93,9 +91,6 @@ const DEFAULT_MODULES = () => {
 };
 
 export default function StudyPlannerApp() {
-  // Auth
-  // - Local mode: username only
-  // - Server mode: username + token
   const [user, setUser] = useState(() => localStorage.getItem(CURR_USER_KEY) || "");
   const [token, setAuthToken] = useState(() => (SERVER_ENABLED ? getToken() : ""));
   const [modules, setModules] = useState([]);
@@ -107,11 +102,11 @@ export default function StudyPlannerApp() {
 
   const tabs = useMemo(
     () => [
-      { id: "overview", label: `Overview (${overallProgress(modules)}%)` },
+      { id: "overview", label: `Overview` },
       { id: "today", label: `Today` },
       { id: "planner", label: "Planner" },
     ],
-    [modules]
+    []
   );
 
   // =====================
@@ -123,12 +118,11 @@ export default function StudyPlannerApp() {
     async function load() {
       if (!user) return;
 
-      // Server mode
       if (SERVER_ENABLED) {
-        if (!token) return; // not logged in yet
+        if (!token) return;
         try {
           setSyncStatus("Syncing…");
-          const data = await api("/modules", { token }); // expects array of modules
+          const data = await api("/modules", { token });
           if (!cancelled) {
             setModules(Array.isArray(data) ? data : DEFAULT_MODULES());
             setSyncStatus("Synced");
@@ -136,14 +130,12 @@ export default function StudyPlannerApp() {
         } catch (e) {
           if (!cancelled) {
             setSyncStatus(`Sync error: ${e.message}`);
-            // fallback so UI isn't dead
             setModules(DEFAULT_MODULES());
           }
         }
         return;
       }
 
-      // Local mode
       const saved = localStorage.getItem(modulesKey(user));
       setModules(saved ? JSON.parse(saved) : DEFAULT_MODULES());
     }
@@ -160,11 +152,9 @@ export default function StudyPlannerApp() {
   useEffect(() => {
     if (!user) return;
 
-    // Server mode: PUT modules whenever modules change (simple sync model)
     if (SERVER_ENABLED) {
       if (!token) return;
 
-      const controller = new AbortController();
       const doSync = async () => {
         try {
           setSyncStatus("Syncing…");
@@ -175,15 +165,10 @@ export default function StudyPlannerApp() {
         }
       };
 
-      // Debounce so we don't spam server on every keystroke
       const t = setTimeout(doSync, 450);
-      return () => {
-        clearTimeout(t);
-        controller.abort();
-      };
+      return () => clearTimeout(t);
     }
 
-    // Local mode
     localStorage.setItem(modulesKey(user), JSON.stringify(modules));
   }, [modules, user, token]);
 
@@ -260,7 +245,6 @@ export default function StudyPlannerApp() {
   // =====================
   const updateModule = (id, patch) => setModules((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
 
-  // Generate evenly spaced tasks counting backwards from exam date
   const generatePlans = () => {
     setModules((prev) =>
       prev.map((m) => {
@@ -292,17 +276,23 @@ export default function StudyPlannerApp() {
     return Math.round((done / total) * 100);
   };
 
+  const overallProgress = useMemo(() => {
+    if (!modules?.length) return 0;
+    const arr = modules.map(progressFor);
+    return Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+  }, [modules]);
+
   const countdownFor = (m) => daysBetween(new Date(), parseYMD(m.examDate));
 
   const setTaskStatus = (modId, taskId, next) =>
     setModules((prev) =>
-      prev.map((m) => (m.id === modId ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, status: next } : t)) } : m))
+      prev.map((m) =>
+        m.id === modId ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, status: next } : t)) } : m
+      )
     );
 
   const addTask = (modId) => {
-    const date = today;
-    const topic = "New task";
-    const task = { id: crypto.randomUUID(), date, topic, status: "Not Started" };
+    const task = { id: crypto.randomUUID(), date: today, topic: "New task", status: "Not Started" };
     setModules((prev) => prev.map((m) => (m.id === modId ? { ...m, tasks: [...(m.tasks || []), task] } : m)));
   };
 
@@ -312,47 +302,46 @@ export default function StudyPlannerApp() {
   // =====================
   // RENDER
   // =====================
-  if (!user) {
-    return <AuthScreen onLogin={login} onRegister={register} serverEnabled={SERVER_ENABLED} />;
-  }
+  if (!user) return <AuthScreen onLogin={login} onRegister={register} serverEnabled={SERVER_ENABLED} />;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="sticky top-0 z-10 backdrop-blur bg-white/70 border-b">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
+      {/* Compact header (less chunky on mobile) */}
+      <header className="sticky top-0 z-10 backdrop-blur bg-white/80 border-b">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight">📚 Study Planner</h1>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <p className="text-slate-500 text-sm">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">📚 Study Planner</h1>
+            <div className="flex flex-wrap items-center gap-2 mt-0.5">
+              <p className="text-slate-500 text-xs sm:text-sm">
                 Signed in as <b className="break-all">{user}</b>
               </p>
-              <span className="text-xs px-2 py-1 rounded-full border bg-white text-slate-600">
-                {SERVER_ENABLED ? `Server sync: ${syncStatus}` : "Local mode"}
+              <span className="text-[11px] px-2 py-1 rounded-full border bg-white text-slate-600">
+                {SERVER_ENABLED ? `Sync: ${syncStatus}` : "Local mode"}
+              </span>
+              <span className="text-[11px] px-2 py-1 rounded-full border bg-white text-slate-600">
+                Overall: <b>{overallProgress}%</b>
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <label className="text-sm hidden sm:block">Days per plan</label>
+          <div className="flex items-center gap-2">
             <input
               type="number"
               min={7}
               max={60}
               value={daysPerPlan}
               onChange={(e) => setDaysPerPlan(Number(e.target.value) || 14)}
-              className="w-20 px-3 py-1 rounded-lg border bg-white"
+              className="w-20 px-3 py-2 rounded-lg border bg-white text-sm"
+              aria-label="Days per plan"
             />
-            <button onClick={generatePlans} className="hidden sm:inline-flex px-3 py-2 rounded-xl bg-slate-900 text-white hover:opacity-90">
-              Generate Plans
-            </button>
-            <button onClick={logout} className="px-3 py-2 rounded-xl border">
+            <button onClick={logout} className="px-3 py-2 rounded-lg border text-sm">
               Logout
             </button>
           </div>
         </div>
 
         {/* Desktop tabs */}
-        <nav className="max-w-6xl mx-auto px-2 pb-2 hidden md:block">
+        <nav className="max-w-6xl mx-auto px-4 pb-3 hidden md:block">
           <div className="grid grid-cols-3 gap-2">
             {tabs.map((tab) => (
               <button
@@ -369,24 +358,29 @@ export default function StudyPlannerApp() {
         </nav>
       </header>
 
-      {/* Main gets bottom padding so mobile nav doesn't cover content */}
-      <main className="max-w-6xl mx-auto px-4 py-6 pb-28 md:pb-6">
-        {/* Mobile quick actions */}
-        <div className="md:hidden flex gap-2 mb-4">
-          <button onClick={generatePlans} className="flex-1 px-3 py-2 rounded-xl bg-slate-900 text-white">
-            Generate Plans
+      {/* Main gets bottom padding so mobile nav + FAB don't cover content */}
+      <main className="max-w-6xl mx-auto px-4 py-4 pb-32 md:pb-6">
+        {/* Mobile quick actions (smaller, less clunky) */}
+        <div className="md:hidden flex gap-2 mb-3">
+          <button
+            onClick={generatePlans}
+            className="flex-1 px-3 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium"
+          >
+            Generate
           </button>
           <button
             onClick={() => {
               if (confirm("Reset data for this user?")) setModules(DEFAULT_MODULES());
             }}
-            className="px-3 py-2 rounded-xl border"
+            className="px-3 py-2 rounded-lg border text-sm"
           >
             Reset
           </button>
         </div>
 
-        {activeTab === "overview" && <Overview modules={modules} progressFor={progressFor} countdownFor={countdownFor} />}
+        {activeTab === "overview" && (
+          <Overview modules={modules} progressFor={progressFor} countdownFor={countdownFor} />
+        )}
         {activeTab === "today" && <Today todos={todayTodos} setTaskStatus={setTaskStatus} />}
         {activeTab === "planner" && (
           <Planner
@@ -401,7 +395,7 @@ export default function StudyPlannerApp() {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 inset-x-0 z-20 bg-white/90 backdrop-blur border-t md:hidden">
+      <nav className="fixed bottom-0 inset-x-0 z-30 bg-white/90 backdrop-blur border-t md:hidden">
         <div className="max-w-6xl mx-auto px-2 py-2 grid grid-cols-3 gap-2">
           {tabs.map((tab) => (
             <button
@@ -411,37 +405,13 @@ export default function StudyPlannerApp() {
                 activeTab === tab.id ? "bg-slate-900 text-white" : "bg-white hover:bg-slate-100"
               }`}
             >
-              {tab.id === "today" ? "Today" : tab.id[0].toUpperCase() + tab.id.slice(1)}
+              {tab.label}
             </button>
           ))}
         </div>
       </nav>
-
-      <footer className="max-w-6xl mx-auto px-4 pb-10 text-sm text-slate-500 hidden md:block">
-        <p>
-          Tip: Edit module names & exam dates, click <b>Generate Plans</b> to auto-create study schedules.
-        </p>
-        <p className="mt-1">
-          {SERVER_ENABLED
-            ? "Data syncs to your server account."
-            : "Data is saved per username in your browser (local mode)."}
-        </p>
-      </footer>
     </div>
   );
-}
-
-// Helper for overall progress (used in tabs label)
-function overallProgress(modules) {
-  if (!modules?.length) return 0;
-  const progressFor = (m) => {
-    const total = m.tasks?.length || 0;
-    if (!total) return 0;
-    const done = m.tasks.filter((t) => t.status === "Done").length;
-    return Math.round((done / total) * 100);
-  };
-  const arr = modules.map(progressFor);
-  return Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
 }
 
 function AuthScreen({ onLogin, onRegister, serverEnabled }) {
@@ -455,12 +425,10 @@ function AuthScreen({ onLogin, onRegister, serverEnabled }) {
 
         {!serverEnabled ? (
           <p className="text-slate-600 mt-1 text-sm">
-            Local mode (no server configured). Create a username to get started. If it already exists, you'll be logged in.
+            Local mode (no server configured). Create a username to get started.
           </p>
         ) : (
-          <p className="text-slate-600 mt-1 text-sm">
-            Server mode enabled. Sign in to access your account across devices.
-          </p>
+          <p className="text-slate-600 mt-1 text-sm">Server mode enabled. Sign in to access your account across devices.</p>
         )}
 
         <div className="mt-4 space-y-2">
@@ -470,7 +438,6 @@ function AuthScreen({ onLogin, onRegister, serverEnabled }) {
             placeholder="Username"
             className="w-full px-3 py-2 rounded-xl border"
           />
-
           {serverEnabled && (
             <input
               value={pw}
@@ -492,9 +459,7 @@ function AuthScreen({ onLogin, onRegister, serverEnabled }) {
         </div>
 
         <p className="text-xs text-slate-500 mt-3">
-          {serverEnabled
-            ? "Your tasks sync to your server account (same login works on any device)."
-            : "No password. Data stays on this device (localStorage)."}
+          {serverEnabled ? "Your tasks sync to your server account." : "No password. Data stays on this device (localStorage)."}
         </p>
       </div>
     </div>
@@ -503,7 +468,7 @@ function AuthScreen({ onLogin, onRegister, serverEnabled }) {
 
 function Overview({ modules, progressFor, countdownFor }) {
   return (
-    <section className="grid md:grid-cols-2 gap-6">
+    <section className="grid md:grid-cols-2 gap-4 sm:gap-6">
       {modules.map((m) => {
         const colors = PALETTE[m.colorIdx % PALETTE.length];
         return (
@@ -518,7 +483,7 @@ function Overview({ modules, progressFor, countdownFor }) {
                   Exam: <span className="font-normal">{m.examDate}</span>
                 </h3>
               </div>
-              <div className={`shrink-0 px-3 py-1 rounded-lg text-white ${colors.bg}`}>{countdownFor(m)} days left</div>
+              <div className={`shrink-0 px-3 py-1 rounded-lg text-white ${colors.bg}`}>{countdownFor(m)} days</div>
             </div>
 
             <div className="mt-5">
@@ -530,21 +495,6 @@ function Overview({ modules, progressFor, countdownFor }) {
                 <div className={`h-full ${colors.bg}`} style={{ width: `${progressFor(m)}%` }}></div>
               </div>
             </div>
-
-            <div className="mt-5 grid grid-cols-3 text-center text-sm">
-              <div className="p-3">
-                <div className="font-semibold">{m.tasks?.length || 0}</div>
-                <div className="text-slate-500">Tasks</div>
-              </div>
-              <div className="p-3 border-l">
-                <div className="font-semibold">{m.tasks?.filter((t) => t.status === "In Progress").length || 0}</div>
-                <div className="text-slate-500">In Progress</div>
-              </div>
-              <div className="p-3 border-l">
-                <div className="font-semibold">{m.tasks?.filter((t) => t.status === "Done").length || 0}</div>
-                <div className="text-slate-500">Done</div>
-              </div>
-            </div>
           </div>
         );
       })}
@@ -553,11 +503,14 @@ function Overview({ modules, progressFor, countdownFor }) {
 }
 
 function Today({ todos, setTaskStatus }) {
-  if (!todos.length) return <p className="text-slate-600">🎉 No tasks for today. Generate plans or add tasks in Planner.</p>;
+  if (!todos.length) return <p className="text-slate-600">🎉 No tasks for today.</p>;
   return (
     <section className="space-y-3">
       {todos.map((t) => (
-        <div key={t.id} className="rounded-2xl border bg-white p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div
+          key={t.id}
+          className="rounded-2xl border bg-white p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+        >
           <div className="min-w-0">
             <div className="text-sm text-slate-500">{t.modName}</div>
             <div className="font-medium truncate">{t.topic}</div>
@@ -579,55 +532,104 @@ function Today({ todos, setTaskStatus }) {
   );
 }
 
+/**
+ * Planner upgrades:
+ * ✅ Mobile collapsible modules
+ * ✅ Mobile cards for tasks (less form-y, better spacing)
+ * ✅ Floating + Task button on mobile (with module picker sheet)
+ */
 function Planner({ modules, updateModule, addTask, removeTask, setTaskStatus, progressFor }) {
+  // Default: open first module on load/change
+  const [openMap, setOpenMap] = useState({});
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  useEffect(() => {
+    if (!modules?.length) return;
+    setOpenMap((prev) => {
+      // if already has keys, don't clobber user's toggles
+      const hasAny = Object.keys(prev).length > 0;
+      if (hasAny) return prev;
+      return { [modules[0].id]: true };
+    });
+  }, [modules]);
+
+  const isOpen = (id) => !!openMap[id];
+  const toggle = (id) => setOpenMap((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  const openIds = useMemo(() => Object.entries(openMap).filter(([, v]) => v).map(([k]) => k), [openMap]);
+
+  const addTaskSmart = () => {
+    // If exactly one module is open, add to that one.
+    if (openIds.length === 1) {
+      addTask(openIds[0]);
+      return;
+    }
+    // Otherwise ask which module
+    setSheetOpen(true);
+  };
+
   return (
-    <section className="space-y-8">
+    <section className="space-y-6 relative">
       {modules.map((m) => {
         const colors = PALETTE[m.colorIdx % PALETTE.length];
         const sortedTasks = (m.tasks || []).slice().sort((a, b) => a.date.localeCompare(b.date));
 
         return (
           <div key={m.id} className="rounded-2xl border bg-white shadow-sm overflow-hidden">
-            <div className={`p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between ${colors.bg} text-white`}>
-              <div className="flex items-center gap-3 min-w-0">
+            {/* Compact module header (less chunky) */}
+            <div className={`${colors.bg} text-white px-4 py-3`}>
+              <div className="flex items-center gap-2">
                 <input
                   value={m.name}
                   onChange={(e) => updateModule(m.id, { name: e.target.value })}
-                  className="px-3 py-1 rounded-lg text-slate-900 w-full sm:w-auto"
+                  className="flex-1 px-3 py-2 rounded-lg text-slate-900 text-sm"
                 />
-                <span className="px-2 py-0.5 rounded-md bg-white/20 text-white/90 text-sm shrink-0">{`${progressFor(m)}%`}</span>
+                <span className="px-2 py-1 rounded-lg bg-white/15 text-xs font-semibold">{progressFor(m)}%</span>
+
+                {/* Collapsible toggle (mobile-first) */}
+                <button
+                  onClick={() => toggle(m.id)}
+                  className="md:hidden px-2 py-2 rounded-lg bg-white/15 ring-1 ring-white/20"
+                  aria-label={isOpen(m.id) ? "Collapse module" : "Expand module"}
+                  title={isOpen(m.id) ? "Collapse" : "Expand"}
+                >
+                  {isOpen(m.id) ? "▾" : "▸"}
+                </button>
               </div>
-              <div className="mt-3 sm:mt-0 flex flex-col sm:flex-row sm:items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <label className="opacity-90">Exam</label>
-                  <input
-                    type="date"
-                    value={m.examDate}
-                    onChange={(e) => updateModule(m.id, { examDate: e.target.value })}
-                    className="px-3 py-1 rounded-lg text-slate-900"
-                  />
-                </div>
+
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-xs opacity-90">Exam</span>
+                <input
+                  type="date"
+                  value={m.examDate}
+                  onChange={(e) => updateModule(m.id, { examDate: e.target.value })}
+                  className="px-3 py-2 rounded-lg text-slate-900 text-sm bg-white"
+                />
+
+                {/* Desktop add task button stays here */}
                 <button
                   onClick={() => addTask(m.id)}
-                  className="sm:ml-2 px-3 py-2 rounded-lg bg-white/15 ring-1 ring-white/30 hover:bg-white/25"
+                  className="hidden md:inline-flex ml-auto px-3 py-2 rounded-lg bg-white/15 ring-1 ring-white/25 text-sm"
                 >
                   + Task
                 </button>
               </div>
             </div>
 
-            <div className="p-4">
+            {/* Body: collapsible on mobile, always open on desktop */}
+            <div className={`${isOpen(m.id) ? "block" : "hidden"} md:block p-4`}>
               {!sortedTasks.length ? (
                 <p className="text-slate-600">
-                  No tasks yet. Click <b>+ Task</b> or use <b>Generate Plans</b>.
+                  No tasks yet. Tap the floating <b>+ Task</b> button (mobile) or click <b>+ Task</b> (desktop).
                 </p>
               ) : (
                 <>
                   {/* MOBILE: cards */}
                   <div className="space-y-3 md:hidden">
                     {sortedTasks.map((t) => (
-                      <div key={t.id} className="rounded-2xl border bg-white p-3">
-                        <div className="flex items-center justify-between gap-2">
+                      <div key={t.id} className="rounded-xl border bg-white p-3 shadow-sm">
+                        {/* Top row */}
+                        <div className="flex items-center gap-2">
                           <input
                             type="date"
                             value={t.date}
@@ -636,34 +638,45 @@ function Planner({ modules, updateModule, addTask, removeTask, setTaskStatus, pr
                                 tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, date: e.target.value } : x)),
                               })
                             }
-                            className="px-2 py-1 rounded-lg border"
+                            className="flex-1 px-3 py-2 rounded-lg border text-sm bg-slate-50"
                           />
-                          <button onClick={() => removeTask(m.id, t.id)} className="px-2 py-1 rounded-lg border hover:bg-slate-50">
+                          <button
+                            onClick={() => removeTask(m.id, t.id)}
+                            className="px-3 py-2 rounded-lg border text-sm text-rose-600 border-rose-200 bg-rose-50"
+                          >
                             Delete
                           </button>
                         </div>
 
-                        <input
-                          value={t.topic}
-                          onChange={(e) =>
-                            updateModule(m.id, {
-                              tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, topic: e.target.value } : x)),
-                            })
-                          }
-                          className="w-full mt-2 px-3 py-2 rounded-xl border"
-                        />
+                        {/* Topic */}
+                        <div className="mt-2">
+                          <label className="text-xs text-slate-500">Topic</label>
+                          <input
+                            value={t.topic}
+                            onChange={(e) =>
+                              updateModule(m.id, {
+                                tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, topic: e.target.value } : x)),
+                              })
+                            }
+                            className="w-full mt-1 px-3 py-2 rounded-lg border text-sm"
+                          />
+                        </div>
 
-                        <select
-                          value={t.status}
-                          onChange={(e) => setTaskStatus(m.id, t.id, e.target.value)}
-                          className="mt-2 w-full px-3 py-2 rounded-xl border bg-white"
-                        >
-                          {["Not Started", "In Progress", "Done"].map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ))}
-                        </select>
+                        {/* Status */}
+                        <div className="mt-2 flex items-center gap-2">
+                          <label className="text-xs text-slate-500 w-14">Status</label>
+                          <select
+                            value={t.status}
+                            onChange={(e) => setTaskStatus(m.id, t.id, e.target.value)}
+                            className="flex-1 px-3 py-2 rounded-lg border text-sm bg-white"
+                          >
+                            {["Not Started", "In Progress", "Done"].map((s) => (
+                              <option key={s} value={s}>
+                                {s}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -719,7 +732,10 @@ function Planner({ modules, updateModule, addTask, removeTask, setTaskStatus, pr
                               </select>
                             </td>
                             <td className="py-2 pr-4">
-                              <button onClick={() => removeTask(m.id, t.id)} className="px-2 py-1 rounded-lg border hover:bg-slate-50">
+                              <button
+                                onClick={() => removeTask(m.id, t.id)}
+                                className="px-2 py-1 rounded-lg border hover:bg-slate-50"
+                              >
                                 Delete
                               </button>
                             </td>
@@ -734,6 +750,59 @@ function Planner({ modules, updateModule, addTask, removeTask, setTaskStatus, pr
           </div>
         );
       })}
+
+      {/* Floating + Task button (mobile only) */}
+      <button
+        onClick={addTaskSmart}
+        className="md:hidden fixed right-5 bottom-20 z-40 w-14 h-14 rounded-full bg-slate-900 text-white shadow-lg text-2xl grid place-items-center"
+        aria-label="Add task"
+        title="Add task"
+      >
+        +
+      </button>
+
+      {/* Module picker bottom sheet (mobile only) */}
+      {sheetOpen && (
+        <div className="md:hidden fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setSheetOpen(false)} />
+          <div className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl border-t shadow-xl p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">Add task to…</h3>
+              <button onClick={() => setSheetOpen(false)} className="px-3 py-2 rounded-lg border text-sm">
+                Close
+              </button>
+            </div>
+
+            <div className="mt-3 grid gap-2">
+              {modules.map((m) => {
+                const colors = PALETTE[m.colorIdx % PALETTE.length];
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => {
+                      addTask(m.id);
+                      // auto-open that module so user sees the new task
+                      setOpenMap((prev) => ({ ...prev, [m.id]: true }));
+                      setSheetOpen(false);
+                    }}
+                    className="w-full flex items-center justify-between rounded-xl border px-3 py-3 text-left"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`w-2.5 h-2.5 rounded-full ${colors.bg}`} />
+                      <span className="truncate font-medium">{m.name}</span>
+                    </div>
+                    <span className="text-xs text-slate-500">{m.examDate}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="mt-3 text-xs text-slate-500">
+              Tip: If you keep only one module expanded, the + button will add directly to it.
+            </p>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
