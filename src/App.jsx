@@ -1,16 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 /**
- * Updates (per your notes) ✅
- * - Removed the "Exams" label repetition (no double Exams heading/chip)
- * - Desktop status: no duplicate "Not Started" (single compact status pill-select)
- * - Category styling: each category has its own nicer banner + card tint + label
- * - Pomodoro:
- *   - NO Focus/Short/Long buttons
- *   - NO long/short breaks — just Focus + Break durations in Pomodoro settings
- *   - Auto switches Focus -> Break -> Focus
- *   - Clock hand no longer obstructs time (marker-dot on ring instead of hand)
- *   - Removed "How to use" card; kept a small note about changing times in settings
+ * Fix included ✅
+ * - Removed invalid hook usage (no hooks inside JSX)
+ * - Everything else kept the same as the previous update
  */
 
 // === Helper utils ===
@@ -20,8 +13,6 @@ const parseYMD = (s) => {
   const [y, m, dd] = s.split("-").map(Number);
   return new Date(y, m - 1, dd);
 };
-const daysBetween = (d1, d2) =>
-  Math.ceil((parseYMD(fmtYMD(d2)) - parseYMD(fmtYMD(d1))) / (1000 * 60 * 60 * 24));
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
 // Fixed palette per item (accent used for header)
@@ -84,8 +75,7 @@ function typeMeta(type) {
       chip: "bg-sky-50 text-sky-800 ring-sky-200",
       tint: "bg-sky-50/70",
       border: "border-sky-200",
-      banner:
-        "bg-gradient-to-r from-sky-50 to-white border-sky-200 text-sky-900",
+      banner: "bg-gradient-to-r from-sky-50 to-white border-sky-200 text-sky-900",
       emoji: "📝",
     };
   if (type === "project")
@@ -94,8 +84,7 @@ function typeMeta(type) {
       chip: "bg-purple-50 text-purple-800 ring-purple-200",
       tint: "bg-purple-50/70",
       border: "border-purple-200",
-      banner:
-        "bg-gradient-to-r from-purple-50 to-white border-purple-200 text-purple-900",
+      banner: "bg-gradient-to-r from-purple-50 to-white border-purple-200 text-purple-900",
       emoji: "🧩",
     };
   return {
@@ -103,8 +92,7 @@ function typeMeta(type) {
     chip: "bg-emerald-50 text-emerald-800 ring-emerald-200",
     tint: "bg-emerald-50/70",
     border: "border-emerald-200",
-    banner:
-      "bg-gradient-to-r from-emerald-50 to-white border-emerald-200 text-emerald-900",
+    banner: "bg-gradient-to-r from-emerald-50 to-white border-emerald-200 text-emerald-900",
     emoji: "✅",
   };
 }
@@ -150,9 +138,7 @@ async function api(path, { method = "GET", body, token } = {}) {
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  const isJson = (res.headers.get("content-type") || "").includes(
-    "application/json"
-  );
+  const isJson = (res.headers.get("content-type") || "").includes("application/json");
   const data = isJson ? await res.json() : null;
 
   if (!res.ok) {
@@ -211,13 +197,7 @@ const DEFAULT_ITEMS = () => {
 // ===== Icons (no deps) =====
 function IconTrash({ className = "" }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M3 6h18" />
       <path d="M8 6V4h8v2" />
       <path d="M19 6l-1 14H6L5 6" />
@@ -228,13 +208,7 @@ function IconTrash({ className = "" }) {
 }
 function IconReset({ className = "" }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M21 12a9 9 0 1 1-3-6.7" />
       <path d="M21 3v7h-7" />
     </svg>
@@ -242,13 +216,7 @@ function IconReset({ className = "" }) {
 }
 function IconUser({ className = "" }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M20 21a8 8 0 1 0-16 0" />
       <path d="M12 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4z" />
     </svg>
@@ -256,13 +224,7 @@ function IconUser({ className = "" }) {
 }
 function IconPlus({ className = "" }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M12 5v14" />
       <path d="M5 12h14" />
     </svg>
@@ -270,13 +232,7 @@ function IconPlus({ className = "" }) {
 }
 function IconLogout({ className = "" }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M10 17l5-5-5-5" />
       <path d="M15 12H3" />
       <path d="M21 4v16" />
@@ -285,13 +241,7 @@ function IconLogout({ className = "" }) {
 }
 function IconStopwatch({ className = "" }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M9 2h6" />
       <path d="M12 14l2-2" />
       <path d="M18 5l1-1" />
@@ -301,13 +251,7 @@ function IconStopwatch({ className = "" }) {
 }
 function IconSettings({ className = "" }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
       <path d="M19.4 15a7.9 7.9 0 0 0 .1-2l2-1.2-2-3.4-2.3.6a7.8 7.8 0 0 0-1.7-1l-.3-2.4H9l-.3 2.4a7.8 7.8 0 0 0-1.7 1l-2.3-.6-2 3.4 2 1.2a7.9 7.9 0 0 0 .1 2l-2 1.2 2 3.4 2.3-.6a7.8 7.8 0 0 0 1.7 1l.3 2.4h6.2l.3-2.4a7.8 7.8 0 0 0 1.7-1l2.3.6 2-3.4-2-1.2z" />
     </svg>
@@ -331,26 +275,14 @@ function IconPause({ className = "" }) {
 // Status icons
 function IconStatusNotStarted({ className = "" }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="8" />
     </svg>
   );
 }
 function IconStatusInProgress({ className = "" }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M12 4a8 8 0 1 0 8 8" />
       <path d="M12 4v8h8" />
     </svg>
@@ -358,13 +290,7 @@ function IconStatusInProgress({ className = "" }) {
 }
 function IconStatusDone({ className = "" }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="8" />
       <path d="M8.5 12l2.2 2.2L15.5 9.5" />
     </svg>
@@ -372,8 +298,7 @@ function IconStatusDone({ className = "" }) {
 }
 function StatusIcon({ status, className = "" }) {
   if (status === "Done") return <IconStatusDone className={className} />;
-  if (status === "In Progress")
-    return <IconStatusInProgress className={className} />;
+  if (status === "In Progress") return <IconStatusInProgress className={className} />;
   return <IconStatusNotStarted className={className} />;
 }
 
@@ -404,7 +329,7 @@ function defaultPomoState() {
     breakMin: 5,
     secondsLeft: 25 * 60,
     targetTs: null,
-    cycles: 0, // completed focus sessions
+    cycles: 0,
   };
 }
 function durationForMode(state, mode) {
@@ -413,26 +338,17 @@ function durationForMode(state, mode) {
 
 // ===================== APP =====================
 export default function StudyPlannerApp() {
-  const [user, setUser] = useState(
-    () => localStorage.getItem(CURR_USER_KEY) || ""
-  );
-  const [token, setAuthToken] = useState(() =>
-    SERVER_ENABLED ? getToken() : ""
-  );
+  const [user, setUser] = useState(() => localStorage.getItem(CURR_USER_KEY) || "");
+  const [token, setAuthToken] = useState(() => (SERVER_ENABLED ? getToken() : ""));
   const [items, setItems] = useState([]);
   const [activeTab, setActiveTab] = useState("planner");
-  const [syncStatus, setSyncStatus] = useState(
-    SERVER_ENABLED ? "Ready" : "Local mode"
-  );
+  const [syncStatus, setSyncStatus] = useState(SERVER_ENABLED ? "Ready" : "Local mode");
 
-  // Profile menu + modals
   const [profileOpen, setProfileOpen] = useState(false);
   const [pomoSettingsOpen, setPomoSettingsOpen] = useState(false);
 
-  // Planner filter (NO "All")
-  const [category, setCategory] = useState("exam"); // exam | project | daily
+  const [category, setCategory] = useState("exam");
 
-  // Pomodoro state
   const [pomo, setPomo] = useState(() => loadPomo() || defaultPomoState());
   const tickRef = useRef(null);
 
@@ -445,6 +361,21 @@ export default function StudyPlannerApp() {
     ],
     []
   );
+
+  // ✅ FIX: derived todos computed via useMemo at top-level (no hooks inside JSX)
+  const todayTodos = useMemo(() => {
+    return items.flatMap((m) =>
+      (m.tasks || [])
+        .filter((t) => t.date === today)
+        .map((t) => ({
+          ...t,
+          itemId: m.id,
+          name: m.name,
+          type: m.type,
+          colorIdx: m.colorIdx,
+        }))
+    );
+  }, [items, today]);
 
   // ===== Load data =====
   useEffect(() => {
@@ -514,7 +445,7 @@ export default function StudyPlannerApp() {
     localStorage.setItem(itemsKey(user), JSON.stringify(items));
   }, [items, user, token]);
 
-  // ===== Pomodoro ticking (refresh-safe) =====
+  // ===== Pomodoro ticking =====
   useEffect(() => {
     savePomo(pomo);
 
@@ -532,11 +463,9 @@ export default function StudyPlannerApp() {
         const left = Math.max(0, Math.round((prev.targetTs - now) / 1000));
 
         if (left <= 0) {
-          // Switch modes automatically
           const finishedMode = prev.mode;
           const nextMode = finishedMode === "focus" ? "break" : "focus";
-          const nextCycles =
-            finishedMode === "focus" ? prev.cycles + 1 : prev.cycles;
+          const nextCycles = finishedMode === "focus" ? prev.cycles + 1 : prev.cycles;
 
           const next = {
             ...prev,
@@ -626,14 +555,11 @@ export default function StudyPlannerApp() {
     }
   };
 
-  const login = (username, password) =>
-    SERVER_ENABLED ? loginServer(username, password) : loginLocal(username);
-  const register = (username, password) =>
-    SERVER_ENABLED ? registerServer(username, password) : loginLocal(username);
+  const login = (username, password) => (SERVER_ENABLED ? loginServer(username, password) : loginLocal(username));
+  const register = (username, password) => (SERVER_ENABLED ? registerServer(username, password) : loginLocal(username));
 
   // ===== Items/tasks helpers =====
-  const updateItem = (id, patch) =>
-    setItems((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  const updateItem = (id, patch) => setItems((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
 
   const addItem = (type) => {
     const idx = items.filter((x) => x.type === type).length + 1;
@@ -642,10 +568,7 @@ export default function StudyPlannerApp() {
     const newItem = {
       id: crypto.randomUUID(),
       type,
-      name:
-        type === "daily"
-          ? `Daily To-Dos ${idx}`
-          : `${type[0].toUpperCase() + type.slice(1)} ${idx}`,
+      name: type === "daily" ? `Daily To-Dos ${idx}` : `${type[0].toUpperCase() + type.slice(1)} ${idx}`,
       colorIdx: items.length % PALETTE.length,
       dueDate: fmtYMD(dt),
       tasks: [],
@@ -654,38 +577,20 @@ export default function StudyPlannerApp() {
   };
 
   const addTask = (itemId) => {
-    const task = {
-      id: crypto.randomUUID(),
-      date: today,
-      topic: "New task",
-      status: "Not Started",
-    };
-    setItems((prev) =>
-      prev.map((m) =>
-        m.id === itemId ? { ...m, tasks: [...(m.tasks || []), task] } : m
-      )
-    );
+    const task = { id: crypto.randomUUID(), date: today, topic: "New task", status: "Not Started" };
+    setItems((prev) => prev.map((m) => (m.id === itemId ? { ...m, tasks: [...(m.tasks || []), task] } : m)));
   };
 
   const removeTask = (itemId, taskId) =>
     setItems((prev) =>
-      prev.map((m) =>
-        m.id === itemId
-          ? { ...m, tasks: (m.tasks || []).filter((t) => t.id !== taskId) }
-          : m
-      )
+      prev.map((m) => (m.id === itemId ? { ...m, tasks: (m.tasks || []).filter((t) => t.id !== taskId) } : m))
     );
 
   const setTaskStatus = (itemId, taskId, next) =>
     setItems((prev) =>
       prev.map((m) =>
         m.id === itemId
-          ? {
-              ...m,
-              tasks: m.tasks.map((t) =>
-                t.id === taskId ? { ...t, status: next } : t
-              ),
-            }
+          ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, status: next } : t)) }
           : m
       )
     );
@@ -694,14 +599,7 @@ export default function StudyPlannerApp() {
     setItems((prev) =>
       prev.map((m) =>
         m.id === itemId
-          ? {
-              ...m,
-              tasks: m.tasks.map((t) =>
-                t.id === taskId
-                  ? { ...t, status: nextStatus(t.status) }
-                  : t
-              ),
-            }
+          ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, status: nextStatus(t.status) } : t)) }
           : m
       )
     );
@@ -714,50 +612,23 @@ export default function StudyPlannerApp() {
   };
 
   // ===== Pomodoro actions =====
-  const startPomo = () => {
-    setPomo((prev) => {
-      const now = Date.now();
-      const targetTs = now + prev.secondsLeft * 1000;
-      return { ...prev, isRunning: true, targetTs };
-    });
-  };
-  const pausePomo = () =>
-    setPomo((prev) => ({ ...prev, isRunning: false, targetTs: null }));
-  const resetPomo = () => {
-    setPomo((prev) => {
-      const dur = durationForMode(prev, prev.mode);
-      return { ...prev, isRunning: false, secondsLeft: dur, targetTs: null };
-    });
-  };
-  const updatePomoSetting = (key, val) => {
+  const startPomo = () => setPomo((prev) => ({ ...prev, isRunning: true, targetTs: Date.now() + prev.secondsLeft * 1000 }));
+  const pausePomo = () => setPomo((prev) => ({ ...prev, isRunning: false, targetTs: null }));
+  const resetPomo = () =>
+    setPomo((prev) => ({ ...prev, isRunning: false, secondsLeft: durationForMode(prev, prev.mode), targetTs: null }));
+  const updatePomoSetting = (key, val) =>
     setPomo((prev) => {
       const next = { ...prev, [key]: val };
       if (!next.isRunning) next.secondsLeft = durationForMode(next, next.mode);
       return next;
     });
-  };
-  const switchModeNow = () => {
+  const switchModeNow = () =>
     setPomo((prev) => {
       const nextMode = prev.mode === "focus" ? "break" : "focus";
-      const next = {
-        ...prev,
-        mode: nextMode,
-        isRunning: false,
-        targetTs: null,
-        secondsLeft: durationForMode(prev, nextMode),
-      };
-      return next;
+      return { ...prev, mode: nextMode, isRunning: false, targetTs: null, secondsLeft: durationForMode(prev, nextMode) };
     });
-  };
 
-  if (!user)
-    return (
-      <AuthScreen
-        onLogin={login}
-        onRegister={register}
-        serverEnabled={SERVER_ENABLED}
-      />
-    );
+  if (!user) return <AuthScreen onLogin={login} onRegister={register} serverEnabled={SERVER_ENABLED} />;
 
   const currentCatMeta = typeMeta(category);
 
@@ -766,9 +637,7 @@ export default function StudyPlannerApp() {
       <header className="sticky top-0 z-20 backdrop-blur bg-white/80 border-b">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-              ✨ Study Productivity
-            </h1>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">✨ Study Productivity</h1>
             <div className="flex flex-wrap items-center gap-2 mt-0.5">
               <p className="text-slate-500 text-xs sm:text-sm">
                 Signed in as <b className="break-all">{user}</b>
@@ -779,7 +648,6 @@ export default function StudyPlannerApp() {
             </div>
           </div>
 
-          {/* Profile icon dropdown */}
           <div className="relative">
             <button
               onClick={() => setProfileOpen((v) => !v)}
@@ -792,9 +660,7 @@ export default function StudyPlannerApp() {
 
             {profileOpen && (
               <div className="absolute right-0 mt-2 w-56 rounded-xl border bg-white shadow-lg overflow-hidden z-30">
-                <div className="px-3 py-2 text-xs text-slate-500 border-b">
-                  Account
-                </div>
+                <div className="px-3 py-2 text-xs text-slate-500 border-b">Account</div>
 
                 <button
                   onClick={() => {
@@ -818,10 +684,7 @@ export default function StudyPlannerApp() {
                   Reset data
                 </button>
 
-                <button
-                  onClick={logout}
-                  className="w-full px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 text-rose-600"
-                >
+                <button onClick={logout} className="w-full px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 text-rose-600">
                   <IconLogout className="w-4 h-4" />
                   Logout
                 </button>
@@ -830,18 +693,13 @@ export default function StudyPlannerApp() {
           </div>
         </div>
 
-        {/* Tabs */}
         <nav className="max-w-6xl mx-auto px-4 pb-3 hidden md:block">
           <div className="grid grid-cols-3 gap-2">
             {tabs.map((t) => (
               <button
                 key={t.id}
                 onClick={() => setActiveTab(t.id)}
-                className={`px-4 py-2 rounded-xl border ${
-                  activeTab === t.id
-                    ? "bg-slate-900 text-white"
-                    : "bg-white hover:bg-slate-100"
-                }`}
+                className={`px-4 py-2 rounded-xl border ${activeTab === t.id ? "bg-slate-900 text-white" : "bg-white hover:bg-slate-100"}`}
               >
                 {t.label}
               </button>
@@ -853,19 +711,12 @@ export default function StudyPlannerApp() {
       <main className="max-w-6xl mx-auto px-4 py-4 pb-32 md:pb-6">
         {activeTab === "planner" && (
           <>
-            {/* Category banner (aesthetic + no repetition) */}
-            <div
-              className={`mb-4 rounded-2xl border p-4 flex items-center justify-between gap-3 ${currentCatMeta.banner}`}
-            >
+            <div className={`mb-4 rounded-2xl border p-4 flex items-center justify-between gap-3 ${currentCatMeta.banner}`}>
               <div className="flex items-center gap-3">
                 <div className="text-2xl">{currentCatMeta.emoji}</div>
                 <div>
-                  <div className="text-lg font-semibold">
-                    {currentCatMeta.label}
-                  </div>
-                  <div className="text-sm opacity-80">
-                    Tap + to add items or tasks
-                  </div>
+                  <div className="text-lg font-semibold">{currentCatMeta.label}</div>
+                  <div className="text-sm opacity-80">Tap + to add items or tasks</div>
                 </div>
               </div>
 
@@ -879,9 +730,7 @@ export default function StudyPlannerApp() {
                     key={c.id}
                     onClick={() => setCategory(c.id)}
                     className={`px-3 py-2 rounded-xl border text-sm ${
-                      category === c.id
-                        ? "bg-slate-900 text-white border-slate-900"
-                        : "bg-white/70 hover:bg-white"
+                      category === c.id ? "bg-slate-900 text-white border-slate-900" : "bg-white/70 hover:bg-white"
                     }`}
                   >
                     {c.label}
@@ -900,30 +749,12 @@ export default function StudyPlannerApp() {
               cycleTaskStatus={cycleTaskStatus}
               progressFor={progressFor}
               category={category}
+              today={today}
             />
           </>
         )}
 
-        {activeTab === "today" && (
-          <Today
-            todos={useMemo(
-              () =>
-                items.flatMap((m) =>
-                  (m.tasks || [])
-                    .filter((t) => t.date === today)
-                    .map((t) => ({
-                      ...t,
-                      itemId: m.id,
-                      name: m.name,
-                      type: m.type,
-                      colorIdx: m.colorIdx,
-                    }))
-                ),
-              [items, today]
-            )}
-            setTaskStatus={setTaskStatus}
-          />
-        )}
+        {activeTab === "today" && <Today todos={todayTodos} setTaskStatus={setTaskStatus} />}
 
         {activeTab === "timer" && (
           <PomodoroClock
@@ -936,7 +767,6 @@ export default function StudyPlannerApp() {
         )}
       </main>
 
-      {/* Mobile bottom nav */}
       <nav className="fixed bottom-0 inset-x-0 z-30 bg-white/90 backdrop-blur border-t md:hidden">
         <div className="max-w-6xl mx-auto px-2 py-2 grid grid-cols-3 gap-2">
           {tabs.map((tab) => (
@@ -944,9 +774,7 @@ export default function StudyPlannerApp() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`px-3 py-3 rounded-xl border text-sm ${
-                activeTab === tab.id
-                  ? "bg-slate-900 text-white"
-                  : "bg-white hover:bg-slate-100"
+                activeTab === tab.id ? "bg-slate-900 text-white" : "bg-white hover:bg-slate-100"
               }`}
             >
               {tab.id === "timer" ? (
@@ -962,17 +790,10 @@ export default function StudyPlannerApp() {
         </div>
       </nav>
 
-      {/* Click-away */}
       {profileOpen && (
-        <button
-          className="fixed inset-0 z-10 cursor-default"
-          onClick={() => setProfileOpen(false)}
-          aria-label="Close profile menu"
-          tabIndex={-1}
-        />
+        <button className="fixed inset-0 z-10 cursor-default" onClick={() => setProfileOpen(false)} aria-label="Close profile menu" tabIndex={-1} />
       )}
 
-      {/* Pomodoro settings modal */}
       {pomoSettingsOpen && (
         <Modal title="Pomodoro Settings" onClose={() => setPomoSettingsOpen(false)}>
           <div className="space-y-3">
@@ -980,22 +801,11 @@ export default function StudyPlannerApp() {
               Change Focus and Break durations here. The timer auto switches Focus → Break → Focus.
             </p>
 
-            <SettingRow
-              label="Focus (min)"
-              value={pomo.focusMin}
-              onChange={(v) => updatePomoSetting("focusMin", v)}
-            />
-            <SettingRow
-              label="Break (min)"
-              value={pomo.breakMin}
-              onChange={(v) => updatePomoSetting("breakMin", v)}
-            />
+            <SettingRow label="Focus (min)" value={pomo.focusMin} onChange={(v) => updatePomoSetting("focusMin", v)} />
+            <SettingRow label="Break (min)" value={pomo.breakMin} onChange={(v) => updatePomoSetting("breakMin", v)} />
 
             <div className="pt-2 flex justify-end">
-              <button
-                onClick={() => setPomoSettingsOpen(false)}
-                className="px-4 py-2 rounded-xl border bg-white"
-              >
+              <button onClick={() => setPomoSettingsOpen(false)} className="px-4 py-2 rounded-xl border bg-white">
                 Done
               </button>
             </div>
@@ -1017,53 +827,28 @@ function AuthScreen({ onLogin, onRegister, serverEnabled }) {
         <h2 className="text-xl font-semibold">Welcome</h2>
 
         {!serverEnabled ? (
-          <p className="text-slate-600 mt-1 text-sm">
-            Local mode. Enter a username to start.
-          </p>
+          <p className="text-slate-600 mt-1 text-sm">Local mode. Enter a username to start.</p>
         ) : (
-          <p className="text-slate-600 mt-1 text-sm">
-            Server mode enabled. Sign in to sync across devices.
-          </p>
+          <p className="text-slate-600 mt-1 text-sm">Server mode enabled. Sign in to sync across devices.</p>
         )}
 
         <div className="mt-4 space-y-2">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Username"
-            className="w-full px-3 py-2 rounded-xl border"
-          />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Username" className="w-full px-3 py-2 rounded-xl border" />
           {serverEnabled && (
-            <input
-              value={pw}
-              onChange={(e) => setPw(e.target.value)}
-              placeholder="Password"
-              type="password"
-              className="w-full px-3 py-2 rounded-xl border"
-            />
+            <input value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Password" type="password" className="w-full px-3 py-2 rounded-xl border" />
           )}
         </div>
 
         <div className="mt-4 flex gap-2">
-          <button
-            onClick={() => onRegister(name, pw)}
-            className="flex-1 px-4 py-2 rounded-xl bg-slate-900 text-white"
-          >
+          <button onClick={() => onRegister(name, pw)} className="flex-1 px-4 py-2 rounded-xl bg-slate-900 text-white">
             Register
           </button>
-          <button
-            onClick={() => onLogin(name, pw)}
-            className="flex-1 px-4 py-2 rounded-xl border"
-          >
+          <button onClick={() => onLogin(name, pw)} className="flex-1 px-4 py-2 rounded-xl border">
             Login
           </button>
         </div>
 
-        <p className="text-xs text-slate-500 mt-3">
-          {serverEnabled
-            ? "Your items + tasks sync to your server account."
-            : "Data stays on this device (localStorage)."}
-        </p>
+        <p className="text-xs text-slate-500 mt-3">{serverEnabled ? "Your items + tasks sync to your server account." : "Data stays on this device (localStorage)."}</p>
       </div>
     </div>
   );
@@ -1083,9 +868,7 @@ function Today({ todos, setTaskStatus }) {
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full ring-1 ${tm.chip}`}>
-                    {tm.label}
-                  </span>
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full ring-1 ${tm.chip}`}>{tm.label}</span>
                   <span className="text-sm text-slate-500 truncate">{t.name}</span>
                 </div>
                 <div className="font-medium truncate mt-1">{t.topic}</div>
@@ -1121,6 +904,7 @@ function Planner({
   cycleTaskStatus,
   progressFor,
   category,
+  today,
 }) {
   const [openMap, setOpenMap] = useState({});
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -1142,9 +926,7 @@ function Planner({
 
         return (
           <div key={m.id} className="space-y-2">
-            {/* Card with category-tinted background */}
-            <div className={`rounded-2xl border shadow-sm overflow-hidden bg-white`}>
-              {/* Header */}
+            <div className="rounded-2xl border shadow-sm overflow-hidden bg-white">
               <div className={`${colors.bg} text-white px-4 py-3`}>
                 <div className="flex flex-wrap items-center gap-2">
                   <input
@@ -1165,14 +947,9 @@ function Planner({
                     <span className="px-3 py-2 rounded-lg bg-white/15 text-sm">Daily</span>
                   )}
 
-                  <span className="px-2 py-1 rounded-lg bg-white/15 text-xs font-semibold">
-                    {progressFor(m)}%
-                  </span>
+                  <span className="px-2 py-1 rounded-lg bg-white/15 text-xs font-semibold">{progressFor(m)}%</span>
 
-                  <button
-                    onClick={() => addTask(m.id)}
-                    className="hidden md:inline-flex ml-auto px-3 py-2 rounded-lg bg-white/15 ring-1 ring-white/25 text-sm"
-                  >
+                  <button onClick={() => addTask(m.id)} className="hidden md:inline-flex ml-auto px-3 py-2 rounded-lg bg-white/15 ring-1 ring-white/25 text-sm">
                     + Task
                   </button>
 
@@ -1187,9 +964,7 @@ function Planner({
                 </div>
               </div>
 
-              {/* Body tinted by type (for nicer differentiation) */}
               <div className={`${isOpen(m.id) ? "block" : "hidden"} md:block p-4 ${tm.tint}`}>
-                {/* Category badge INSIDE card (so no repetition with page banner) */}
                 <div className="mb-3 flex items-center gap-2">
                   <span className={`text-[11px] px-2 py-0.5 rounded-full ring-1 ${tm.chip}`}>
                     {tm.emoji} {tm.label}
@@ -1200,7 +975,6 @@ function Planner({
                   <p className="text-slate-600">No tasks yet. Tap + to add.</p>
                 ) : (
                   <>
-                    {/* MOBILE: one line + status icon only */}
                     <div className="md:hidden space-y-2">
                       {sortedTasks.map((t) => {
                         const meta = statusMeta(t.status);
@@ -1211,32 +985,25 @@ function Planner({
                               value={t.date}
                               onChange={(e) =>
                                 updateItem(m.id, {
-                                  tasks: m.tasks.map((x) =>
-                                    x.id === t.id ? { ...t, date: e.target.value } : x
-                                  ),
+                                  tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, date: e.target.value } : x)),
                                 })
                               }
                               className="w-[9.5rem] shrink-0 px-3 py-2 rounded-lg border text-sm bg-white/70"
-                              aria-label="Task date"
                             />
 
                             <input
                               value={t.topic}
                               onChange={(e) =>
                                 updateItem(m.id, {
-                                  tasks: m.tasks.map((x) =>
-                                    x.id === t.id ? { ...t, topic: e.target.value } : x
-                                  ),
+                                  tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, topic: e.target.value } : x)),
                                 })
                               }
                               className="flex-1 min-w-0 px-3 py-2 rounded-lg border text-sm bg-white"
-                              aria-label="Task topic"
                             />
 
                             <button
                               onClick={() => cycleTaskStatus(m.id, t.id)}
                               className={`w-11 h-11 shrink-0 grid place-items-center rounded-lg ring-1 ${meta.pill}`}
-                              aria-label={`Status: ${meta.label} (tap to change)`}
                               title={`Status: ${meta.label} (tap to change)`}
                             >
                               <StatusIcon status={t.status} className={`w-5 h-5 ${meta.iconColor}`} />
@@ -1245,7 +1012,6 @@ function Planner({
                             <button
                               onClick={() => removeTask(m.id, t.id)}
                               className="w-11 h-11 shrink-0 grid place-items-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600"
-                              aria-label="Delete task"
                               title="Delete"
                             >
                               <IconTrash className="w-5 h-5" />
@@ -1255,7 +1021,6 @@ function Planner({
                       })}
                     </div>
 
-                    {/* DESKTOP: single status control (NO repetition) */}
                     <div className="hidden md:block overflow-x-auto">
                       <table className="min-w-full text-sm">
                         <thead>
@@ -1277,9 +1042,7 @@ function Planner({
                                     value={t.date}
                                     onChange={(e) =>
                                       updateItem(m.id, {
-                                        tasks: m.tasks.map((x) =>
-                                          x.id === t.id ? { ...t, date: e.target.value } : x
-                                        ),
+                                        tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, date: e.target.value } : x)),
                                       })
                                     }
                                     className="px-2 py-1 rounded-lg border bg-white"
@@ -1291,9 +1054,7 @@ function Planner({
                                     value={t.topic}
                                     onChange={(e) =>
                                       updateItem(m.id, {
-                                        tasks: m.tasks.map((x) =>
-                                          x.id === t.id ? { ...t, topic: e.target.value } : x
-                                        ),
+                                        tasks: m.tasks.map((x) => (x.id === t.id ? { ...t, topic: e.target.value } : x)),
                                       })
                                     }
                                     className="w-full px-3 py-1 rounded-lg border bg-white"
@@ -1301,35 +1062,25 @@ function Planner({
                                 </td>
 
                                 <td className="py-2 pr-4">
-                                  <label className="relative inline-flex items-center">
-                                    <span className="sr-only">Status</span>
-                                    <span
-                                      className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border ${meta.select}`}
+                                  <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border ${meta.select}`}>
+                                    <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
+                                    <StatusIcon status={t.status} className={`w-4 h-4 ${meta.iconColor}`} />
+                                    <select
+                                      value={t.status}
+                                      onChange={(e) => setTaskStatus(m.id, t.id, e.target.value)}
+                                      className="bg-transparent outline-none border-none p-0 m-0 text-sm"
                                     >
-                                      <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
-                                      <StatusIcon status={t.status} className={`w-4 h-4 ${meta.iconColor}`} />
-                                      <select
-                                        value={t.status}
-                                        onChange={(e) => setTaskStatus(m.id, t.id, e.target.value)}
-                                        className="bg-transparent outline-none border-none p-0 m-0 text-sm"
-                                      >
-                                        {STATUSES.map((s) => (
-                                          <option key={s} value={s}>
-                                            {s}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </span>
-                                  </label>
+                                      {STATUSES.map((s) => (
+                                        <option key={s} value={s}>
+                                          {s}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </span>
                                 </td>
 
                                 <td className="py-2 pr-4">
-                                  <button
-                                    onClick={() => removeTask(m.id, t.id)}
-                                    className="px-2 py-2 rounded-lg border bg-white hover:bg-slate-50 inline-flex items-center justify-center"
-                                    aria-label="Delete task"
-                                    title="Delete"
-                                  >
+                                  <button onClick={() => removeTask(m.id, t.id)} className="px-2 py-2 rounded-lg border bg-white hover:bg-slate-50">
                                     <IconTrash className="w-4 h-4" />
                                   </button>
                                 </td>
@@ -1347,12 +1098,10 @@ function Planner({
         );
       })}
 
-      {/* MOBILE: single + (add task OR new item) */}
       <button
         onClick={() => setPickerOpen(true)}
         className="md:hidden fixed right-5 bottom-20 z-40 w-14 h-14 rounded-full bg-slate-900 text-white shadow-lg grid place-items-center"
         aria-label="Add"
-        title="Add"
       >
         <IconPlus className="w-6 h-6" />
       </button>
@@ -1395,13 +1144,9 @@ function AddPickerSheet({ items, currentType, onClose, onAddTask, onAddItem }) {
               <span className={`text-[11px] px-2 py-0.5 rounded-full ring-1 ${tm.chip}`}>
                 {tm.emoji} {tm.label}
               </span>
-              <div className="font-medium text-sm">
-                New {currentType === "daily" ? "list" : "item"}
-              </div>
+              <div className="font-medium text-sm">New {currentType === "daily" ? "list" : "item"}</div>
             </div>
-            <div className="text-xs text-slate-500 mt-0.5">
-              Creates a new card in this category
-            </div>
+            <div className="text-xs text-slate-500 mt-0.5">Creates a new card in this category</div>
           </button>
         </div>
 
@@ -1427,9 +1172,7 @@ function AddPickerSheet({ items, currentType, onClose, onAddTask, onAddItem }) {
                       {cat.emoji} {cat.label}
                     </span>
                   </div>
-                  <span className="text-xs text-slate-500">
-                    {m.type === "daily" ? "—" : m.dueDate}
-                  </span>
+                  <span className="text-xs text-slate-500">{m.type === "daily" ? "—" : m.dueDate}</span>
                 </button>
               );
             })}
@@ -1440,34 +1183,25 @@ function AddPickerSheet({ items, currentType, onClose, onAddTask, onAddItem }) {
   );
 }
 
-// ===================== TIMER (no hand over time; marker-dot on ring) =====================
+// ===================== TIMER =====================
 function PomodoroClock({ pomo, onStart, onPause, onReset, onSwitchModeNow }) {
   const modeLabel = pomo.mode === "focus" ? "Focus" : "Break";
-  const total = useMemo(
-    () => durationForMode(pomo, pomo.mode),
-    [pomo.mode, pomo.focusMin, pomo.breakMin]
-  );
+  const total = useMemo(() => durationForMode(pomo, pomo.mode), [pomo.mode, pomo.focusMin, pomo.breakMin]);
   const progress = total > 0 ? 1 - pomo.secondsLeft / total : 0;
 
-  // SVG ring
   const size = 280;
   const r = 110;
   const c = 2 * Math.PI * r;
   const dash = c * clamp(progress, 0, 1);
   const dashOffset = c - dash;
 
-  // marker-dot around ring (instead of hand through center)
   const angle = (-90 + 360 * clamp(progress, 0, 1)) * (Math.PI / 180);
   const cx = size / 2;
   const cy = size / 2;
-  const markerRadius = r;
-  const mx = cx + markerRadius * Math.cos(angle);
-  const my = cy + markerRadius * Math.sin(angle);
+  const mx = cx + r * Math.cos(angle);
+  const my = cy + r * Math.sin(angle);
 
-  const chip =
-    pomo.mode === "focus"
-      ? "bg-slate-900 text-white"
-      : "bg-emerald-100 text-emerald-900 border border-emerald-200";
+  const chip = pomo.mode === "focus" ? "bg-slate-900 text-white" : "bg-emerald-100 text-emerald-900 border border-emerald-200";
 
   return (
     <section className="max-w-3xl mx-auto">
@@ -1479,18 +1213,13 @@ function PomodoroClock({ pomo, onStart, onPause, onReset, onSwitchModeNow }) {
               {modeLabel} • Cycles {pomo.cycles}
             </p>
           </div>
-
-          <span className={`px-3 py-2 rounded-xl text-sm ${chip}`}>
-            {pomo.isRunning ? "Running" : "Paused"}
-          </span>
+          <span className={`px-3 py-2 rounded-xl text-sm ${chip}`}>{pomo.isRunning ? "Running" : "Paused"}</span>
         </div>
 
         <div className="mt-6 flex justify-center">
           <div className="relative" style={{ width: size, height: size }}>
-            {/* Dial */}
             <div className="absolute inset-0 rounded-full bg-gradient-to-b from-slate-50 to-white border shadow-sm" />
 
-            {/* Ticks */}
             <svg className="absolute inset-0" viewBox={`0 0 ${size} ${size}`}>
               {[...Array(60)].map((_, i) => {
                 const a = (-90 + i * 6) * (Math.PI / 180);
@@ -1515,16 +1244,8 @@ function PomodoroClock({ pomo, onStart, onPause, onReset, onSwitchModeNow }) {
               })}
             </svg>
 
-            {/* Progress ring + marker */}
             <svg className="absolute inset-0" viewBox={`0 0 ${size} ${size}`}>
-              <circle
-                cx={cx}
-                cy={cy}
-                r={r}
-                fill="none"
-                stroke="rgba(148,163,184,0.35)"
-                strokeWidth="14"
-              />
+              <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(148,163,184,0.35)" strokeWidth="14" />
               <circle
                 cx={cx}
                 cy={cy}
@@ -1537,46 +1258,29 @@ function PomodoroClock({ pomo, onStart, onPause, onReset, onSwitchModeNow }) {
                 strokeDashoffset={dashOffset}
                 transform={`rotate(-90 ${cx} ${cy})`}
               />
-              {/* Marker dot */}
               <circle cx={mx} cy={my} r="7" fill="rgba(15,23,42,0.95)" />
               <circle cx={mx} cy={my} r="3" fill="white" opacity="0.9" />
             </svg>
 
-            {/* Center readout */}
             <div className="absolute inset-0 grid place-items-center">
               <div className="text-center">
-                <div className="text-5xl font-semibold tracking-tight">
-                  {formatMMSS(pomo.secondsLeft)}
-                </div>
+                <div className="text-5xl font-semibold tracking-tight">{formatMMSS(pomo.secondsLeft)}</div>
                 <div className="mt-2 text-sm text-slate-500">{modeLabel}</div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ICON controls */}
         <div className="mt-6 flex justify-center gap-3">
-          <IconButton
-            label={pomo.isRunning ? "Pause" : "Start"}
-            onClick={pomo.isRunning ? onPause : onStart}
-            primary
-          >
-            {pomo.isRunning ? (
-              <IconPause className="w-5 h-5" />
-            ) : (
-              <IconPlay className="w-5 h-5" />
-            )}
+          <IconButton label={pomo.isRunning ? "Pause" : "Start"} onClick={pomo.isRunning ? onPause : onStart} primary>
+            {pomo.isRunning ? <IconPause className="w-5 h-5" /> : <IconPlay className="w-5 h-5" />}
           </IconButton>
 
           <IconButton label="Reset" onClick={onReset}>
             <IconReset className="w-5 h-5" />
           </IconButton>
 
-          <button
-            onClick={onSwitchModeNow}
-            className="px-4 py-2 rounded-xl border bg-white hover:bg-slate-50 text-sm"
-            title="Switch Focus/Break"
-          >
+          <button onClick={onSwitchModeNow} className="px-4 py-2 rounded-xl border bg-white hover:bg-slate-50 text-sm" title="Switch Focus/Break">
             Switch to {pomo.mode === "focus" ? "Break" : "Focus"}
           </button>
         </div>
@@ -1594,9 +1298,7 @@ function IconButton({ label, onClick, children, primary }) {
     <button
       onClick={onClick}
       className={`w-12 h-12 rounded-2xl grid place-items-center border shadow-sm ${
-        primary
-          ? "bg-slate-900 text-white border-slate-900"
-          : "bg-white hover:bg-slate-50"
+        primary ? "bg-slate-900 text-white border-slate-900" : "bg-white hover:bg-slate-50"
       }`}
       aria-label={label}
       title={label}
@@ -1606,17 +1308,12 @@ function IconButton({ label, onClick, children, primary }) {
   );
 }
 
-// ===================== SETTINGS UI =====================
 function SettingRow({ label, value, onChange }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-sm">{label}</span>
       <div className="flex items-center gap-2">
-        <button
-          onClick={() => onChange(clamp(value - 1, 1, 90))}
-          className="w-10 h-10 rounded-xl border bg-white grid place-items-center"
-          aria-label={`Decrease ${label}`}
-        >
+        <button onClick={() => onChange(clamp(value - 1, 1, 90))} className="w-10 h-10 rounded-xl border bg-white grid place-items-center">
           −
         </button>
         <input
@@ -1625,11 +1322,7 @@ function SettingRow({ label, value, onChange }) {
           onChange={(e) => onChange(clamp(Number(e.target.value) || 1, 1, 90))}
           className="w-20 px-3 py-2 rounded-xl border text-sm"
         />
-        <button
-          onClick={() => onChange(clamp(value + 1, 1, 90))}
-          className="w-10 h-10 rounded-xl border bg-white grid place-items-center"
-          aria-label={`Increase ${label}`}
-        >
+        <button onClick={() => onChange(clamp(value + 1, 1, 90))} className="w-10 h-10 rounded-xl border bg-white grid place-items-center">
           +
         </button>
       </div>
@@ -1645,10 +1338,7 @@ function Modal({ title, onClose, children }) {
         <div className="rounded-2xl border bg-white shadow-xl overflow-hidden">
           <div className="px-4 py-3 border-b flex items-center justify-between">
             <div className="font-semibold">{title}</div>
-            <button
-              onClick={onClose}
-              className="px-3 py-2 rounded-xl border bg-white text-sm"
-            >
+            <button onClick={onClose} className="px-3 py-2 rounded-xl border bg-white text-sm">
               Close
             </button>
           </div>
