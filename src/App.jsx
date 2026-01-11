@@ -90,6 +90,28 @@ const DEFAULT_MODULES = () => {
   ];
 };
 
+// ===== Icons (no deps) =====
+function IconTrash({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+    </svg>
+  );
+}
+function IconLogout({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M10 17l5-5-5-5" />
+      <path d="M15 12H3" />
+      <path d="M21 4v16" />
+    </svg>
+  );
+}
+
 export default function StudyPlannerApp() {
   const [user, setUser] = useState(() => localStorage.getItem(CURR_USER_KEY) || "");
   const [token, setAuthToken] = useState(() => (SERVER_ENABLED ? getToken() : ""));
@@ -102,8 +124,8 @@ export default function StudyPlannerApp() {
 
   const tabs = useMemo(
     () => [
-      { id: "overview", label: `Overview` },
-      { id: "today", label: `Today` },
+      { id: "overview", label: "Overview" },
+      { id: "today", label: "Today" },
       { id: "planner", label: "Planner" },
     ],
     []
@@ -245,6 +267,21 @@ export default function StudyPlannerApp() {
   // =====================
   const updateModule = (id, patch) => setModules((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
 
+  const addModule = () => {
+    const idx = modules.length + 1;
+    const dt = new Date();
+    // Stagger new module exam dates so it doesn't spawn "today"
+    dt.setDate(dt.getDate() + 21 + Math.min(modules.length * 3, 45));
+    const newMod = {
+      id: crypto.randomUUID(),
+      name: `Module ${idx}`,
+      colorIdx: modules.length % PALETTE.length,
+      examDate: fmtYMD(dt),
+      tasks: [],
+    };
+    setModules((prev) => [...prev, newMod]);
+  };
+
   const generatePlans = () => {
     setModules((prev) =>
       prev.map((m) => {
@@ -306,7 +343,7 @@ export default function StudyPlannerApp() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      {/* Compact header (less chunky on mobile) */}
+      {/* Compact header */}
       <header className="sticky top-0 z-10 backdrop-blur bg-white/80 border-b">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -334,8 +371,16 @@ export default function StudyPlannerApp() {
               className="w-20 px-3 py-2 rounded-lg border bg-white text-sm"
               aria-label="Days per plan"
             />
-            <button onClick={logout} className="px-3 py-2 rounded-lg border text-sm">
-              Logout
+
+            {/* Icon logout */}
+            <button
+              onClick={logout}
+              className="px-3 py-2 rounded-lg border text-sm inline-flex items-center gap-2"
+              aria-label="Logout"
+              title="Logout"
+            >
+              <IconLogout className="w-4 h-4" />
+              <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
         </div>
@@ -358,9 +403,8 @@ export default function StudyPlannerApp() {
         </nav>
       </header>
 
-      {/* Main gets bottom padding so mobile nav + FAB don't cover content */}
-      <main className="max-w-6xl mx-auto px-4 py-4 pb-32 md:pb-6">
-        {/* Mobile quick actions (smaller, less clunky) */}
+      <main className="max-w-6xl mx-auto px-4 py-4 pb-36 md:pb-6">
+        {/* Mobile quick actions */}
         <div className="md:hidden flex gap-2 mb-3">
           <button
             onClick={generatePlans}
@@ -387,6 +431,7 @@ export default function StudyPlannerApp() {
             modules={modules}
             updateModule={updateModule}
             addTask={addTask}
+            addModule={addModule}
             removeTask={removeTask}
             setTaskStatus={setTaskStatus}
             progressFor={progressFor}
@@ -424,9 +469,7 @@ function AuthScreen({ onLogin, onRegister, serverEnabled }) {
         <h2 className="text-xl font-semibold">Welcome to Study Planner</h2>
 
         {!serverEnabled ? (
-          <p className="text-slate-600 mt-1 text-sm">
-            Local mode (no server configured). Create a username to get started.
-          </p>
+          <p className="text-slate-600 mt-1 text-sm">Local mode (no server configured). Create a username to get started.</p>
         ) : (
           <p className="text-slate-600 mt-1 text-sm">Server mode enabled. Sign in to access your account across devices.</p>
         )}
@@ -534,19 +577,18 @@ function Today({ todos, setTaskStatus }) {
 
 /**
  * Planner upgrades:
- * ✅ Mobile collapsible modules
- * ✅ Mobile cards for tasks (less form-y, better spacing)
- * ✅ Floating + Task button on mobile (with module picker sheet)
+ * ✅ Exam date on SAME LINE as name + progress (mobile + desktop)
+ * ✅ Delete + Logout as icons
+ * ✅ Add unlimited modules (+ Module)
+ * ✅ Mobile collapsible modules + FAB + bottom sheet
  */
-function Planner({ modules, updateModule, addTask, removeTask, setTaskStatus, progressFor }) {
-  // Default: open first module on load/change
+function Planner({ modules, updateModule, addTask, addModule, removeTask, setTaskStatus, progressFor }) {
   const [openMap, setOpenMap] = useState({});
   const [sheetOpen, setSheetOpen] = useState(false);
 
   useEffect(() => {
     if (!modules?.length) return;
     setOpenMap((prev) => {
-      // if already has keys, don't clobber user's toggles
       const hasAny = Object.keys(prev).length > 0;
       if (hasAny) return prev;
       return { [modules[0].id]: true };
@@ -555,80 +597,80 @@ function Planner({ modules, updateModule, addTask, removeTask, setTaskStatus, pr
 
   const isOpen = (id) => !!openMap[id];
   const toggle = (id) => setOpenMap((prev) => ({ ...prev, [id]: !prev[id] }));
-
   const openIds = useMemo(() => Object.entries(openMap).filter(([, v]) => v).map(([k]) => k), [openMap]);
 
   const addTaskSmart = () => {
-    // If exactly one module is open, add to that one.
     if (openIds.length === 1) {
       addTask(openIds[0]);
       return;
     }
-    // Otherwise ask which module
     setSheetOpen(true);
   };
 
   return (
     <section className="space-y-6 relative">
+      {/* Add Module button (desktop + mobile, but not clunky) */}
+      <div className="flex justify-end">
+        <button onClick={addModule} className="px-3 py-2 rounded-lg border text-sm bg-white hover:bg-slate-50">
+          + Module
+        </button>
+      </div>
+
       {modules.map((m) => {
         const colors = PALETTE[m.colorIdx % PALETTE.length];
         const sortedTasks = (m.tasks || []).slice().sort((a, b) => a.date.localeCompare(b.date));
 
         return (
           <div key={m.id} className="rounded-2xl border bg-white shadow-sm overflow-hidden">
-            {/* Compact module header (less chunky) */}
+            {/* Header: everything on ONE line (wraps nicely if needed) */}
             <div className={`${colors.bg} text-white px-4 py-3`}>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <input
                   value={m.name}
                   onChange={(e) => updateModule(m.id, { name: e.target.value })}
-                  className="flex-1 px-3 py-2 rounded-lg text-slate-900 text-sm"
+                  className="min-w-[10rem] flex-1 px-3 py-2 rounded-lg text-slate-900 text-sm"
                 />
-                <span className="px-2 py-1 rounded-lg bg-white/15 text-xs font-semibold">{progressFor(m)}%</span>
 
-                {/* Collapsible toggle (mobile-first) */}
-                <button
-                  onClick={() => toggle(m.id)}
-                  className="md:hidden px-2 py-2 rounded-lg bg-white/15 ring-1 ring-white/20"
-                  aria-label={isOpen(m.id) ? "Collapse module" : "Expand module"}
-                  title={isOpen(m.id) ? "Collapse" : "Expand"}
-                >
-                  {isOpen(m.id) ? "▾" : "▸"}
-                </button>
-              </div>
-
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-xs opacity-90">Exam</span>
                 <input
                   type="date"
                   value={m.examDate}
                   onChange={(e) => updateModule(m.id, { examDate: e.target.value })}
                   className="px-3 py-2 rounded-lg text-slate-900 text-sm bg-white"
+                  aria-label="Exam date"
                 />
 
-                {/* Desktop add task button stays here */}
+                <span className="px-2 py-1 rounded-lg bg-white/15 text-xs font-semibold">{progressFor(m)}%</span>
+
+                {/* Desktop add task button */}
                 <button
                   onClick={() => addTask(m.id)}
                   className="hidden md:inline-flex ml-auto px-3 py-2 rounded-lg bg-white/15 ring-1 ring-white/25 text-sm"
                 >
                   + Task
                 </button>
+
+                {/* Collapsible toggle (mobile) */}
+                <button
+                  onClick={() => toggle(m.id)}
+                  className="md:hidden ml-auto px-2 py-2 rounded-lg bg-white/15 ring-1 ring-white/20"
+                  aria-label={isOpen(m.id) ? "Collapse module" : "Expand module"}
+                  title={isOpen(m.id) ? "Collapse" : "Expand"}
+                >
+                  {isOpen(m.id) ? "▾" : "▸"}
+                </button>
               </div>
             </div>
 
-            {/* Body: collapsible on mobile, always open on desktop */}
+            {/* Body */}
             <div className={`${isOpen(m.id) ? "block" : "hidden"} md:block p-4`}>
               {!sortedTasks.length ? (
-                <p className="text-slate-600">
-                  No tasks yet. Tap the floating <b>+ Task</b> button (mobile) or click <b>+ Task</b> (desktop).
-                </p>
+                <p className="text-slate-600">No tasks yet. Use the + button to add one.</p>
               ) : (
                 <>
                   {/* MOBILE: cards */}
                   <div className="space-y-3 md:hidden">
                     {sortedTasks.map((t) => (
                       <div key={t.id} className="rounded-xl border bg-white p-3 shadow-sm">
-                        {/* Top row */}
                         <div className="flex items-center gap-2">
                           <input
                             type="date"
@@ -640,15 +682,18 @@ function Planner({ modules, updateModule, addTask, removeTask, setTaskStatus, pr
                             }
                             className="flex-1 px-3 py-2 rounded-lg border text-sm bg-slate-50"
                           />
+
+                          {/* Icon delete */}
                           <button
                             onClick={() => removeTask(m.id, t.id)}
-                            className="px-3 py-2 rounded-lg border text-sm text-rose-600 border-rose-200 bg-rose-50"
+                            className="w-11 h-11 grid place-items-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600"
+                            aria-label="Delete task"
+                            title="Delete"
                           >
-                            Delete
+                            <IconTrash className="w-5 h-5" />
                           </button>
                         </div>
 
-                        {/* Topic */}
                         <div className="mt-2">
                           <label className="text-xs text-slate-500">Topic</label>
                           <input
@@ -662,7 +707,6 @@ function Planner({ modules, updateModule, addTask, removeTask, setTaskStatus, pr
                           />
                         </div>
 
-                        {/* Status */}
                         <div className="mt-2 flex items-center gap-2">
                           <label className="text-xs text-slate-500 w-14">Status</label>
                           <select
@@ -734,9 +778,11 @@ function Planner({ modules, updateModule, addTask, removeTask, setTaskStatus, pr
                             <td className="py-2 pr-4">
                               <button
                                 onClick={() => removeTask(m.id, t.id)}
-                                className="px-2 py-1 rounded-lg border hover:bg-slate-50"
+                                className="px-2 py-2 rounded-lg border hover:bg-slate-50 inline-flex items-center justify-center"
+                                aria-label="Delete task"
+                                title="Delete"
                               >
-                                Delete
+                                <IconTrash className="w-4 h-4" />
                               </button>
                             </td>
                           </tr>
@@ -751,15 +797,26 @@ function Planner({ modules, updateModule, addTask, removeTask, setTaskStatus, pr
         );
       })}
 
-      {/* Floating + Task button (mobile only) */}
-      <button
-        onClick={addTaskSmart}
-        className="md:hidden fixed right-5 bottom-20 z-40 w-14 h-14 rounded-full bg-slate-900 text-white shadow-lg text-2xl grid place-items-center"
-        aria-label="Add task"
-        title="Add task"
-      >
-        +
-      </button>
+      {/* Floating buttons (mobile) */}
+      <div className="md:hidden fixed right-5 bottom-20 z-40 flex flex-col gap-3">
+        <button
+          onClick={addModule}
+          className="w-14 h-14 rounded-full bg-white border shadow-lg text-xl grid place-items-center"
+          aria-label="Add module"
+          title="Add module"
+        >
+          ＋
+        </button>
+
+        <button
+          onClick={addTaskSmart}
+          className="w-14 h-14 rounded-full bg-slate-900 text-white shadow-lg text-2xl grid place-items-center"
+          aria-label="Add task"
+          title="Add task"
+        >
+          +
+        </button>
+      </div>
 
       {/* Module picker bottom sheet (mobile only) */}
       {sheetOpen && (
@@ -781,7 +838,6 @@ function Planner({ modules, updateModule, addTask, removeTask, setTaskStatus, pr
                     key={m.id}
                     onClick={() => {
                       addTask(m.id);
-                      // auto-open that module so user sees the new task
                       setOpenMap((prev) => ({ ...prev, [m.id]: true }));
                       setSheetOpen(false);
                     }}
@@ -796,10 +852,6 @@ function Planner({ modules, updateModule, addTask, removeTask, setTaskStatus, pr
                 );
               })}
             </div>
-
-            <p className="mt-3 text-xs text-slate-500">
-              Tip: If you keep only one module expanded, the + button will add directly to it.
-            </p>
           </div>
         </div>
       )}
