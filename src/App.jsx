@@ -740,18 +740,17 @@ export default function StudyPlannerApp() {
                   </button>
                 ))}
 
-                {/* Desktop add item for Exams/Projects (same style as Daily "+ Task") */}
+                {/* ✅ Desktop add item for Exams/Projects */}
                 {category !== "daily" && (
                   <button
                     onClick={() => addItem(category)}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white border border-slate-900"
+                    className="hidden md:inline-flex ml-2 px-3 py-2 rounded-xl bg-slate-900 text-white border border-slate-900 items-center gap-2"
                     title="Add item"
                   >
                     <IconPlus className="w-4 h-4" />
-                    Itemlol
+                    Item
                   </button>
                 )}
-
               </div>
             </div>
 
