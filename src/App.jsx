@@ -740,17 +740,18 @@ export default function StudyPlannerApp() {
                   </button>
                 ))}
 
-                {/* ✅ Desktop add item for Exams/Projects */}
+                {/* Desktop add item for Exams/Projects (same style as Daily "+ Task") */}
                 {category !== "daily" && (
                   <button
                     onClick={() => addItem(category)}
-                    className="hidden md:inline-flex ml-2 px-3 py-2 rounded-xl bg-slate-900 text-white border border-slate-900 items-center gap-2"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white border border-slate-900"
                     title="Add item"
                   >
                     <IconPlus className="w-4 h-4" />
                     Item
                   </button>
                 )}
+
               </div>
             </div>
 
@@ -962,7 +963,6 @@ function DailyBoard({ items, today, addDailyTask, updateItem, removeTask, setTas
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="text-sm text-slate-600">Add daily tasks directly (no modules).</div>
         <button
           onClick={addDailyTask}
           className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white border border-slate-900"
